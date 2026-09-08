@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 设为图标：圆角方块 + 星形镂空，代表应用图标 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FF000000"
+        android:fillType="evenOdd"
+        android:pathData="M5,1 L19,1 A4,4 0 0 1 23,5 L23,19 A4,4 0 0 1 19,23 L5,23 A4,4 0 0 1 1,19 L1,5 A4,4 0 0 1 5,1 Z M12,5.5 L13.85,9.35 L18.05,9.8 L14.95,12.75 L15.85,16.9 L12,14.7 L8.15,16.9 L9.05,12.75 L5.95,9.8 L10.15,9.35 Z" />
+</vector>

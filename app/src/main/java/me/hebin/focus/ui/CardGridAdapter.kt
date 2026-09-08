@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.button.MaterialButton
 import me.hebin.focus.R
 import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.CollectionRepository
@@ -133,10 +134,20 @@ class CardGridAdapter(
             }
         }
 
-        AlertDialog.Builder(ctx)
+        val dialog = AlertDialog.Builder(ctx)
             .setTitle(title)
             .setView(view)
             .setPositiveButton("好的") { d, _ -> d.dismiss() }
             .show()
+
+        // 已收集：提供「设为自定义图标」入口，带着当前滑动到的稀有度直接确认
+        if (counts.isNotEmpty()) {
+            val btnSetIcon = view.findViewById<MaterialButton>(R.id.btnSetAsIcon)
+            btnSetIcon.isVisible = true
+            btnSetIcon.setOnClickListener {
+                val act = ctx as? android.app.Activity ?: return@setOnClickListener
+                IconPicker.confirmCard(act, id, owned[idx]) { dialog.dismiss() }
+            }
+        }
     }
 }

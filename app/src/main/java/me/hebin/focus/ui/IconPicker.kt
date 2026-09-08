@@ -157,8 +157,23 @@ object IconPicker {
         sheet.show()
     }
 
+    /** 卡片详情弹窗入口：直接对当前查看的卡弹出「设为图标」二次确认（可在已收集稀有度间滑动切换） */
+    fun confirmCard(activity: Activity, id: Int, start: Rarity, onApplied: (() -> Unit)? = null) {
+        if (!IconSwitcher.isCustomSupported()) {
+            Toast.makeText(activity, "自定义图标需要 Android 8.0 以上", Toast.LENGTH_SHORT).show()
+            return
+        }
+        showConfirm(activity, null, id, start, onApplied)
+    }
+
     /** 二次确认弹窗：大卡预览 + 左右滑动切换稀有度（只在已收集的稀有度间循环） */
-    private fun showConfirm(activity: Activity, sheet: BottomSheetDialog, id: Int, start: Rarity) {
+    private fun showConfirm(
+        activity: Activity,
+        sheet: BottomSheetDialog?,
+        id: Int,
+        start: Rarity,
+        onApplied: (() -> Unit)? = null
+    ) {
         val repo = CollectionRepository.get(activity)
         // 该卡已收集的所有稀有度（升序），滑动只能在这些之间切换
         val owned = repo.ownedCounts(id).keys.sortedBy { it.ordinal }
@@ -215,7 +230,8 @@ object IconPicker {
                         "图标已更换！回到桌面看看效果（部分桌面需要几秒刷新）",
                         Toast.LENGTH_LONG
                     ).show()
-                    sheet.dismiss()
+                    sheet?.dismiss()
+                    onApplied?.invoke()
                 } else {
                     Toast.makeText(activity, "图标切换失败，请重试", Toast.LENGTH_SHORT).show()
                 }

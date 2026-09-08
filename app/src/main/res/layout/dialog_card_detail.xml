@@ -43,6 +43,18 @@
                 android:textSize="11sp" />
         </LinearLayout>
 
+        <!-- 设为自定义图标入口（默认隐藏，已收集的卡由代码显示） -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSetAsIcon"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="设为自定义图标"
+            android:visibility="gone"
+            app:icon="@drawable/ic_set_icon"
+            app:iconGravity="textStart" />
+
         <LinearLayout
             android:id="@+id/detailRarityRows"
             android:layout_width="match_parent"

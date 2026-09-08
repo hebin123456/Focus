@@ -543,7 +543,7 @@ class MainActivity : AppCompatActivity() {
 
     // ---------------- 掉落弹窗 ----------------
 
-    /** 通用卡片详情弹窗 */
+    /** 通用卡片详情弹窗（我的收藏入口） */
     private fun showCardDetail(title: String, cardId: Int, rarity: me.hebin.focus.data.Rarity) {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_card_detail, null)
         val card = view.findViewById<CardView>(R.id.detailCard)
@@ -552,11 +552,19 @@ class MainActivity : AppCompatActivity() {
         card.cardNumber = cardId
         card.locked = false
 
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle(title)
             .setView(view)
-            .setPositiveButton("收下") { d, _ -> d.dismiss() }
+            .setPositiveButton("确认") { d, _ -> d.dismiss() }
             .show()
+
+        // 收藏里的卡都是已持有的，直接提供「设为自定义图标」入口
+        view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnSetAsIcon).apply {
+            isVisible = true
+            setOnClickListener {
+                IconPicker.confirmCard(this@MainActivity, cardId, rarity) { dialog.dismiss() }
+            }
+        }
     }
 
     /** 专注完成后的掉落展示（频控内提供看广告补领一张） */
