@@ -227,7 +227,7 @@ class CollectionRepository private constructor(context: Context) {
         ShopStore.get(appCtx).wipeDebug()
     }
 
-    /** 全收集（101 × 5 稀有度各 1 张）+ 全成就解锁 */
+    /** 全收集（101 × 5 稀有度各 1 张）+ 全成就解锁 + 金币 99999 + 填充最近收集展示条 */
     fun debugUnlockAll() {
         val root = JSONObject()
         for (id in 1..CardCatalog.TOTAL) {
@@ -235,11 +235,22 @@ class CollectionRepository private constructor(context: Context) {
             for (r in Rarity.entries) o.put(r.ordinal.toString(), 1)
             root.put(id.toString(), o)
         }
+        // 最近收集：取前 12 张不同编号的卡，稀有度递增分布，保证主页展示条有内容
+        val recent = JSONArray()
+        for (i in 0 until 12) {
+            recent.put(
+                JSONObject()
+                    .put("id", i + 1)
+                    .put("r", Rarity.entries[i % Rarity.entries.size].ordinal)
+            )
+        }
         cardsCache = null
-        prefs.edit().putString(KEY_CARDS, root.toString()).apply()
         prefs.edit()
+            .putString(KEY_CARDS, root.toString())
+            .putString(KEY_RECENT, recent.toString())
             .putStringSet(KEY_ACHIEVEMENTS, Achievements.defs.map { it.id }.toSet())
             .apply()
+        ShopStore.get(appCtx).debugSetCoins(99_999)
     }
 
     // ---------- 每日登录（联网校验时间） ----------

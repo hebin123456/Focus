@@ -480,11 +480,13 @@ class MainActivity : AppCompatActivity() {
             if (taps == 5) {
                 CollectionRepository.get(this).debugWipe()
                 refreshStats(); refreshShowcase(); refreshDrawerHeader()
+                binding.textCoins.text = ShopStore.get(this).currentCoins().toString()
                 Toast.makeText(this, "调试：已清空全部收集与进度", Toast.LENGTH_SHORT).show()
             } else if (taps == 10) {
                 CollectionRepository.get(this).debugUnlockAll()
                 refreshStats(); refreshShowcase(); refreshDrawerHeader()
-                Toast.makeText(this, "调试：已解锁全图鉴与全成就", Toast.LENGTH_SHORT).show()
+                binding.textCoins.text = ShopStore.get(this).currentCoins().toString()
+                Toast.makeText(this, "调试：已解锁全图鉴与全成就，金币 99999", Toast.LENGTH_SHORT).show()
             }
         }
         // 标题和正文都可点

@@ -93,6 +93,12 @@ class ShopStore private constructor(context: Context) {
         prefs.edit().clear().apply()
     }
 
+    /** 调试用：直接设置金币数（换算成 bankedMs 存入） */
+    fun debugSetCoins(coins: Int) {
+        FocusApp.instance?.bankForegroundMs()
+        bankedMs = coins.toLong() * MS_PER_COIN
+    }
+
     private fun liveMs(): Long = FocusApp.instance?.liveForegroundMs() ?: 0L
 
     companion object {
