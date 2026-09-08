@@ -11,8 +11,8 @@ android {
         applicationId = "me.hebin.focus"
         minSdk = 24
         targetSdk = 34
-        versionCode = 9
-        versionName = "0.6.0"
+        versionCode = 10
+        versionName = "0.7.0"
     }
 
     buildTypes {

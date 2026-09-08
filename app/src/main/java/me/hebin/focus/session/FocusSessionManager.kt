@@ -9,6 +9,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.hebin.focus.data.CollectionRepository
 import me.hebin.focus.data.DropEngine
+import me.hebin.focus.data.ShopStore
 
 /**
  * 专注会话管理器（进程级单例）。
@@ -29,7 +30,9 @@ object FocusSessionManager {
             val startedAt: Long,
             val endAt: Long,
             val totalMs: Long,
-            val minutes: Int
+            val minutes: Int,
+            /** 深度专注模式：全屏沉浸，完成金币翻倍 */
+            val deep: Boolean = false
         ) : State()
 
         data class Success(
@@ -75,12 +78,12 @@ object FocusSessionManager {
     fun isScreenOffRecent(): Boolean =
         System.currentTimeMillis() - screenOffAt < 3_000
 
-    /** 开始一场专注（minutes 分钟） */
-    fun start(context: Context, minutes: Int) {
+    /** 开始一场专注（minutes 分钟；deep = 深度专注模式） */
+    fun start(context: Context, minutes: Int, deep: Boolean = false) {
         val repo = CollectionRepository.get(context)
         val totalMs = minutes * 60_000L
         val now = System.currentTimeMillis()
-        val focusing = State.Focusing(now, now + totalMs, totalMs, minutes)
+        val focusing = State.Focusing(now, now + totalMs, totalMs, minutes, deep)
         setState(focusing)
 
         scope.launch {
@@ -90,6 +93,11 @@ object FocusSessionManager {
             repo.addCard(drop.cardId, drop.rarity)
             repo.addFocusMinutes(minutes)
             repo.addFinishedSession()
+            if (deep) {
+                repo.addDeepSession()
+                // 深度专注奖励：按专注时长再发一份金币（相当于本次金币翻倍）
+                ShopStore.get(context).addMs(totalMs)
+            }
             repo.savePendingDrop(drop) // 防进程被杀丢结果；查看后 take 掉
             setState(State.Success(drop, minutes))
         }

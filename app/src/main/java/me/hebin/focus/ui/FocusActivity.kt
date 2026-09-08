@@ -28,8 +28,12 @@ import android.view.animation.LinearInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -39,6 +43,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.hebin.focus.R
+import me.hebin.focus.audio.AmbientPlayer
+import me.hebin.focus.audio.AmbientPrefs
+import me.hebin.focus.audio.AmbientSound
 import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.CollectionRepository
 import me.hebin.focus.data.DropEngine
@@ -56,16 +63,25 @@ import kotlin.random.Random
  * 专注页：计时 → 剪影渐显 →（离开 App / 放弃 → 碎裂动画 | 倒计时结束 → 翻卡揭示）。
  *
  * 「离开 App 判定」：onStop 且非旋转、非锁屏 → 判定离开，卡片碎裂。
- * 锁屏期间计时继续，若期间倒计时结束，回来看结果即可。
+ * 锁屏期间计时继续，白噪音持续播放，若期间倒计时结束，回来看结果即可。
+ *
+ * 深度专注模式：全屏沉浸（隐藏系统栏）、不显示放弃按钮、完成金币翻倍、默认播放白噪音。
  */
 class FocusActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_MINUTES = "minutes"
+        const val EXTRA_DEEP = "deep"
     }
 
     private lateinit var binding: ActivityFocusBinding
     private var resultShown = false
+
+    /** 深度专注模式（由主页开关带入） */
+    private var deep = false
+
+    /** 当前播放的声景，null = 关闭 */
+    private var curSound: AmbientSound? = null
 
     /** 碎裂发生在后台（切走瞬间）或进程被杀后恢复时，回到前台补播动画 */
     private var replayCrack: State.Cracked? = null
@@ -91,6 +107,8 @@ class FocusActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         val minutes = intent.getIntExtra(EXTRA_MINUTES, 25)
+        deep = intent.getBooleanExtra(EXTRA_DEEP, false)
+        if (deep) applyImmersive()
 
         // 保持屏幕常亮，避免误触发熄屏
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -101,7 +119,7 @@ class FocusActivity : AppCompatActivity() {
             CollectionRepository.get(this).peekPendingCrack()
         } else null
         if (restoredCrack == null && state is State.Idle) {
-            FocusSessionManager.start(this, minutes)
+            FocusSessionManager.start(this, minutes, deep)
         }
         FocusSessionManager.addListener(stateListener)
         if (restoredCrack != null) {
@@ -112,6 +130,12 @@ class FocusActivity : AppCompatActivity() {
             replayCrack = st
         }
         binding.btnGiveUp.setOnClickListener { confirmGiveUp() }
+        setupNoisePanel()
+        // 自动续播上次选的声景；深度专注默认雨声（用户明确关过则尊重选择）
+        if (restoredCrack == null && FocusSessionManager.state is State.Focusing) {
+            val init = AmbientPrefs.sound(this, if (deep) AmbientSound.RAIN else AmbientSound.OFF)
+            if (init != AmbientSound.OFF) startAmbient(init)
+        }
         startTicker()
     }
 
@@ -141,6 +165,7 @@ class FocusActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         FocusSessionManager.removeListener(stateListener)
+        AmbientPlayer.stop()
         super.onDestroy()
     }
 
@@ -159,8 +184,11 @@ class FocusActivity : AppCompatActivity() {
 
     private fun confirmGiveUp() {
         AlertDialog.Builder(this)
-            .setTitle("放弃这次专注？")
-            .setMessage("卡片会直接碎裂哦")
+            .setTitle(if (deep) "深度专注进行中" else "放弃这次专注？")
+            .setMessage(
+                if (deep) "现在离开，卡片会碎裂，也无法获得双倍金币奖励"
+                else "卡片会直接碎裂哦"
+            )
             .setPositiveButton("继续专注") { d, _ -> d.dismiss() }
             .setNegativeButton("放弃") { d, _ ->
                 d.dismiss()
@@ -201,7 +229,9 @@ class FocusActivity : AppCompatActivity() {
     private fun showFocusing(state: State.Focusing) {
         binding.textTitle.text = "专注中，别走开"
         binding.textHint.isVisible = true
-        binding.btnGiveUp.isVisible = true
+        // 深度专注不显示放弃按钮，减少诱惑；返回键仍可退出（弹强提醒）
+        binding.btnGiveUp.isVisible = !deep
+        binding.noisePanel.isVisible = true
         binding.cardSilhouette.isVisible = true
         binding.cardSilhouette.mode = CardView.Mode.SILHOUETTE
         binding.cardSilhouette.startShimmer()
@@ -237,6 +267,8 @@ class FocusActivity : AppCompatActivity() {
         vibrate(200)
         binding.textHint.isVisible = false
         binding.btnGiveUp.isVisible = false
+        binding.noisePanel.isVisible = false
+        AmbientPlayer.stop()
         binding.cardSilhouette.stopShimmer()
 
         val front = binding.cardFront
@@ -279,7 +311,7 @@ class FocusActivity : AppCompatActivity() {
         binding.textResult.text = "获得 ${drop.rarity.label} · ${CardCatalog.displayName(drop.cardId)}"
         binding.textResult.setTextColor(drop.rarity.color)
         binding.textReason.isVisible = true
-        binding.textReason.text = "已收入图鉴"
+        binding.textReason.text = if (deep) "已收入图鉴 · 深度专注金币翻倍" else "已收入图鉴"
         binding.btnCollect.isVisible = true
         binding.btnCollect.setOnClickListener {
             FocusSessionManager.reset()
@@ -516,6 +548,8 @@ class FocusActivity : AppCompatActivity() {
         crackNoticeShown = true
         binding.textCountdown.isVisible = false
         binding.progressFocus.isVisible = false
+        binding.noisePanel.isVisible = false
+        AmbientPlayer.stop()
         binding.textTitle.text = "卡片碎裂了"
         binding.textResult.isVisible = true
         binding.textResult.text = cracked.reason
@@ -534,6 +568,56 @@ class FocusActivity : AppCompatActivity() {
             FocusSessionManager.reset()
             finish()
         }
+    }
+
+    // ---------------- 白噪音 / 深度专注 ----------------
+
+    /** 深度专注：全屏沉浸，隐藏状态栏与导航栏（滑动可临时呼出） */
+    private fun applyImmersive() {
+        val controller = WindowCompat.getInsetsController(window, window.decorView)
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        controller.hide(WindowInsetsCompat.Type.systemBars())
+    }
+
+    private fun setupNoisePanel() {
+        val buttons = listOf(
+            AmbientSound.OFF to R.id.btnNoiseOff,
+            AmbientSound.WHITE to R.id.btnNoiseWhite,
+            AmbientSound.RAIN to R.id.btnNoiseRain,
+            AmbientSound.WAVES to R.id.btnNoiseWave,
+            AmbientSound.FIRE to R.id.btnNoiseFire
+        )
+        val current = curSound
+            ?: AmbientPrefs.sound(this, if (deep) AmbientSound.RAIN else AmbientSound.OFF)
+        binding.noiseGroup.check(buttons.first { it.first == current }.second)
+        binding.noiseGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val s = buttons.first { it.second == checkedId }.first
+            AmbientPrefs.setSound(this, s)
+            if (s == AmbientSound.OFF) {
+                curSound = null
+                AmbientPlayer.stop()
+            } else {
+                startAmbient(s)
+            }
+        }
+        binding.noiseVolume.progress = AmbientPrefs.volume(this)
+        binding.noiseVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                AmbientPrefs.setVolume(this@FocusActivity, p)
+                AmbientPlayer.setVolume(p / 100f)
+            }
+
+            override fun onStartTrackingTouch(sb: SeekBar) = Unit
+            override fun onStopTrackingTouch(sb: SeekBar) = Unit
+        })
+    }
+
+    private fun startAmbient(s: AmbientSound) {
+        curSound = s
+        AmbientPlayer.start(s, AmbientPrefs.volume(this) / 100f)
     }
 
     // ---------------- 工具 ----------------

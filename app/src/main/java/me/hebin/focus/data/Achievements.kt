@@ -1,7 +1,7 @@
 package me.hebin.focus.data
 
 /**
- * 成就系统：20 个成就、按类别分组，每个成就有对应点数；
+ * 成就系统：22 个成就、按类别分组，每个成就有对应点数；
  * 点数达标解锁四级徽章（青铜/白银/黄金/钻石），徽章可佩戴展示在主页。
  */
 object Achievements {
@@ -65,6 +65,8 @@ object Achievements {
         Def("min_60", "一小时之约", "累计专注 60 分钟", 5, CAT_FOCUS, { it.totalFocusMinutes to 60 }),
         Def("min_600", "十小时长跑", "累计专注 600 分钟", 15, CAT_FOCUS, { it.totalFocusMinutes to 600 }),
         Def("min_3000", "五十小时大师", "累计专注 3000 分钟", 40, CAT_FOCUS, { it.totalFocusMinutes to 3000 }),
+        Def("deep_1", "心流初体验", "完成 1 次深度专注", 10, CAT_FOCUS, { it.deepSessions to 1 }),
+        Def("deep_10", "深潜大师", "完成 10 次深度专注", 25, CAT_FOCUS, { it.deepSessions to 10 }),
 
         // ---- 稀有掉落 ----
         Def("first_gold", "金光一闪", "首次获得金卡", 15, CAT_RARE, { (if (it.hasRarity(Rarity.GOLD)) 1 else 0) to 1 }),

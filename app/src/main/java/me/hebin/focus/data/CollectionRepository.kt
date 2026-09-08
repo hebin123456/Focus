@@ -148,9 +148,15 @@ class CollectionRepository private constructor(context: Context) {
         get() = prefs.getInt(KEY_CRACKED, 0)
         private set(v) = prefs.edit().putInt(KEY_CRACKED, v).apply()
 
+    /** 完成的深度专注次数（成就用） */
+    var deepSessions: Int
+        get() = prefs.getInt(KEY_DEEP_SESSIONS, 0)
+        private set(v) = prefs.edit().putInt(KEY_DEEP_SESSIONS, v).apply()
+
     fun addFocusMinutes(m: Int) { totalFocusMinutes += m }
     fun addFinishedSession() { finishedSessions += 1 }
     fun addCrack() { crackedCount += 1 }
+    fun addDeepSession() { deepSessions += 1 }
 
     // ---------- 每日登录（联网校验时间） ----------
 
@@ -254,6 +260,7 @@ class CollectionRepository private constructor(context: Context) {
         private const val KEY_MINUTES = "totalMinutes"
         private const val KEY_SESSIONS = "sessions"
         private const val KEY_CRACKED = "cracked"
+        private const val KEY_DEEP_SESSIONS = "deepSessions"
         private const val KEY_PENDING = "pendingDrop"
         private const val KEY_PENDING_CRACK = "pendingCrack"
         private const val KEY_NICKNAME = "nickname"

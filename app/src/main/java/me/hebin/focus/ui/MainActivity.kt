@@ -27,6 +27,7 @@ import me.hebin.focus.R
 import me.hebin.focus.ads.AdManager
 import me.hebin.focus.ads.AdPlacement
 import me.hebin.focus.ads.AdResult
+import me.hebin.focus.audio.AmbientPrefs
 import me.hebin.focus.data.Achievements
 import me.hebin.focus.data.AvatarStore
 import me.hebin.focus.data.CardCatalog
@@ -72,6 +73,12 @@ class MainActivity : AppCompatActivity() {
         }
         binding.chipGroupDuration.check(R.id.chip_duration_base + 1) // 默认 25 分钟
 
+        // 深度专注模式：记忆上次选择
+        binding.switchDeep.isChecked = AmbientPrefs.deepMode(this)
+        binding.switchDeep.setOnCheckedChangeListener { _, checked ->
+            AmbientPrefs.setDeepMode(this, checked)
+        }
+
         binding.btnStart.setOnClickListener {
             val checkedId = binding.chipGroupDuration.checkedChipId
             val minutes = if (checkedId == -1) 25 else {
@@ -80,6 +87,7 @@ class MainActivity : AppCompatActivity() {
             startActivity(
                 Intent(this, FocusActivity::class.java)
                     .putExtra(FocusActivity.EXTRA_MINUTES, minutes)
+                    .putExtra(FocusActivity.EXTRA_DEEP, binding.switchDeep.isChecked)
             )
         }
 
@@ -427,6 +435,8 @@ class MainActivity : AppCompatActivity() {
             · 101 张萌宠卡 × 5 种稀有度，集齐图鉴可兑换奖励
             · 卡片工坊：分解随机得 3 张低级卡，3 张合成 1 张高级卡（结果随机）
             · 金币与道具商店：App 前台挂机攒金币，道具敬请期待
+            · 白噪音：雨声 / 海浪 / 炉火 / 白噪程序化合成，专注时可选可调音量
+            · 深度专注：全屏沉浸隐藏放弃按钮，完成金币翻倍
             · 自定义图标：用收集到的萌宠当桌面图标，样式跟随稀有度
             · 每日登录送卡，连续越久卡越好（联网校验时间）
             · 成就点数解锁青铜/白银/黄金/钻石勋章，可佩戴展示
