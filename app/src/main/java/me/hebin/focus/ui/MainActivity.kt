@@ -28,6 +28,7 @@ import me.hebin.focus.ads.AdPlacement
 import me.hebin.focus.ads.AdResult
 import me.hebin.focus.data.Achievements
 import me.hebin.focus.data.AvatarStore
+import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.CollectionRepository
 import me.hebin.focus.data.DailyLoginManager
 import me.hebin.focus.data.DropEngine
@@ -188,7 +189,7 @@ class MainActivity : AppCompatActivity() {
     private fun refreshStats() {
         val repo = CollectionRepository.get(this)
         binding.statMinutes.text = repo.totalFocusMinutes.toString()
-        binding.statCollected.text = "${repo.collectedCount()}/100"
+        binding.statCollected.text = "${repo.collectedCount()}/${CardCatalog.TOTAL}"
         binding.statCracked.text = repo.crackedCount.toString()
 
         val equipped = Achievements.equippedBadge(repo)
@@ -357,7 +358,7 @@ class MainActivity : AppCompatActivity() {
 
             Focus 是一款游戏化专注 App：专注时卡片以剪影慢慢生成，中途离开 App 卡片会碎裂；坚持到底翻卡收入图鉴。
 
-            · 100 张编号卡 × 5 种稀有度
+            · 101 张萌宠卡 × 5 种稀有度，集齐图鉴可兑换奖励
             · 每日登录送卡，连续越久卡越好（联网校验时间）
             · 成就点数解锁青铜/白银/黄金/钻石勋章，可佩戴展示
             · 资料仅保存在本地，无账号无上传

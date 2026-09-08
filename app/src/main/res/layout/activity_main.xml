@@ -140,7 +140,7 @@
                             android:id="@+id/statCollected"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0/100"
+                            android:text="0/101"
                             android:textColor="@color/secondary"
                             android:textSize="22sp"
                             android:textStyle="bold" />
@@ -148,7 +148,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="已集编号"
+                            android:text="已集图鉴"
                             android:textColor="@color/textSecondary"
                             android:textSize="11sp" />
                     </LinearLayout>

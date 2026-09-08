@@ -54,15 +54,15 @@ class CardGridAdapter(
         val inflater = LayoutInflater.from(ctx)
         val title: String
         if (counts.isEmpty()) {
-            title = "编号 $id · 未收集"
+            title = "${CardCatalog.displayName(id)} · 未收集"
             val row = inflater.inflate(R.layout.item_rarity_row, container, false)
             row.findViewById<android.widget.TextView>(R.id.rowRarity).apply {
-                text = "尚未获得该卡片，专注时间越长越容易掉落哦"
+                text = "${CardCatalog.categoryOfId(id)}类 · 尚未获得，专注时间越长越容易掉落哦"
                 setTextColor(0xFF9AA3C0.toInt())
             }
             container.addView(row)
         } else {
-            title = "编号 $id"
+            title = "${CardCatalog.displayName(id)}（${CardCatalog.categoryOfId(id)}）"
             for (r in Rarity.entries) {
                 val row = inflater.inflate(R.layout.item_rarity_row, container, false)
                 row.findViewById<android.widget.TextView>(R.id.rowRarity).apply {

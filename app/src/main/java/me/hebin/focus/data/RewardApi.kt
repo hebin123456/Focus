@@ -40,14 +40,14 @@ data class ExchangeResult(
     val message: String
 )
 
-/** Demo 本地实现：唯一套装「全套 100 张」，集齐即可兑换 */
+/** Demo 本地实现：唯一套装「全套 101 张」，集齐即可兑换 */
 class StubRewardApi(private val repo: CollectionRepository) : RewardApi {
 
     override fun rewardSets(): List<RewardSet> = listOf(
         RewardSet(
-            id = "full-set-100",
+            id = "full-set-101",
             title = "全图鉴大礼包",
-            description = "集齐全部 100 张编号卡片（任意稀有度即可），兑换神秘大礼包一份",
+            description = "集齐全部 101 张萌宠卡（任意稀有度即可），兑换神秘大礼包一份",
             requiredCardCount = CardCatalog.TOTAL
         )
     )

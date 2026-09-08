@@ -52,11 +52,11 @@ object Achievements {
         // ---- 图鉴收集 ----
         Def("own_10", "初窥门径", "收集 10 种编号卡片", 5, CAT_COLL, { it.distinctOwnedCount() to 10 }),
         Def("own_50", "小有收藏", "收集 50 种编号卡片", 10, CAT_COLL, { it.distinctOwnedCount() to 50 }),
-        Def("full_common", "普卡大师", "集齐全部 100 张普卡", 20, CAT_COLL, { it.rarityOwnedCount(Rarity.COMMON) to 100 }),
-        Def("full_copper", "铜卡大师", "集齐全部 100 张铜卡", 30, CAT_COLL, { it.rarityOwnedCount(Rarity.COPPER) to 100 }),
-        Def("full_silver", "银卡大师", "集齐全部 100 张银卡", 40, CAT_COLL, { it.rarityOwnedCount(Rarity.SILVER) to 100 }),
-        Def("full_gold", "金卡大师", "集齐全部 100 张金卡", 60, CAT_COLL, { it.rarityOwnedCount(Rarity.GOLD) to 100 }),
-        Def("full_diamond", "钻石收藏家", "集齐全部 100 张钻石卡", 100, CAT_COLL, { it.rarityOwnedCount(Rarity.DIAMOND) to 100 }),
+        Def("full_common", "普卡大师", "集齐全部 101 张普卡", 20, CAT_COLL, { it.rarityOwnedCount(Rarity.COMMON) to CardCatalog.TOTAL }),
+        Def("full_copper", "铜卡大师", "集齐全部 101 张铜卡", 30, CAT_COLL, { it.rarityOwnedCount(Rarity.COPPER) to CardCatalog.TOTAL }),
+        Def("full_silver", "银卡大师", "集齐全部 101 张银卡", 40, CAT_COLL, { it.rarityOwnedCount(Rarity.SILVER) to CardCatalog.TOTAL }),
+        Def("full_gold", "金卡大师", "集齐全部 101 张金卡", 60, CAT_COLL, { it.rarityOwnedCount(Rarity.GOLD) to CardCatalog.TOTAL }),
+        Def("full_diamond", "钻石收藏家", "集齐全部 101 张钻石卡", 100, CAT_COLL, { it.rarityOwnedCount(Rarity.DIAMOND) to CardCatalog.TOTAL }),
 
         // ---- 专注修行 ----
         Def("focus_1", "第一份专注", "完成 1 次专注", 5, CAT_FOCUS, { it.finishedSessions to 1 }),

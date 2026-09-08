@@ -30,6 +30,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.hebin.focus.R
+import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.DropEngine
 import me.hebin.focus.databinding.ActivityFocusBinding
 import me.hebin.focus.session.FocusSessionManager
@@ -224,7 +225,7 @@ class FocusActivity : AppCompatActivity() {
         binding.progressFocus.isVisible = false
         binding.textTitle.text = "专注完成！"
         binding.textResult.isVisible = true
-        binding.textResult.text = "获得 ${drop.rarity.label} · 编号 ${drop.cardId}"
+        binding.textResult.text = "获得 ${drop.rarity.label} · ${CardCatalog.displayName(drop.cardId)}"
         binding.textResult.setTextColor(drop.rarity.color)
         binding.textReason.isVisible = true
         binding.textReason.text = "已收入图鉴"

@@ -2,12 +2,14 @@ package me.hebin.focus.ui.view
 
 import android.animation.ValueAnimator
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.DashPathEffect
 import android.graphics.LinearGradient
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RadialGradient
 import android.graphics.RectF
 import android.graphics.Shader
@@ -15,14 +17,16 @@ import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.LinearInterpolator
+import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.Rarity
 
 /**
- * 卡片自绘控件。Demo 阶段卡面用编号数字占位，后续美术资源到位后
- * 只需在 [drawFace] 里替换为图片绘制即可，外部接口不变。
+ * 卡片自绘控件（美术资源版）。
+ * 卡面 = assets/cards/NNN.webp 萌宠图 + 稀有度配色 + 名称，
+ * 未收集时以深色剪影展示动物轮廓；生成中为通用黑卡剪影（不剧透）。
  *
  * 模式：
- *  - FACE       正面（稀有度配色 + 编号），locked=true 时为图鉴未收集样式
+ *  - FACE       正面（稀有度配色 + 萌宠图 + 名称），locked=true 时为图鉴未收集样式（暗剪影）
  *  - SILHOUETTE 生成中的剪影（黑卡 + ? + 流光 + 进度渐显）
  */
 class CardView @JvmOverloads constructor(
@@ -36,6 +40,14 @@ class CardView @JvmOverloads constructor(
     var mode: Mode = Mode.FACE
     var rarity: Rarity = Rarity.COMMON
     var cardNumber: Int = 1
+        set(v) {
+            if (field != v) {
+                field = v
+                artBitmap = null
+                requestedArtId = -1
+                invalidate()
+            }
+        }
     var locked: Boolean = false
 
     /** 剪影生成进度 0..1（SILHOUETTE 模式下使用） */
@@ -54,7 +66,7 @@ class CardView @JvmOverloads constructor(
 
     private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE }
-    private val numberPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         textAlign = Paint.Align.CENTER
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
@@ -63,7 +75,31 @@ class CardView @JvmOverloads constructor(
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
     private val miscPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+
+    /** 萌宠图绘制 */
+    private val artPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isFilterBitmap = true }
+
+    /** 未收集剪影：把图染成深蓝灰（亮度清零 + 固定色偏移） */
+    private val silhouettePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        isFilterBitmap = true
+        colorFilter = ColorMatrixColorFilter(
+            ColorMatrix(
+                floatArrayOf(
+                    0f, 0f, 0f, 0f, 42f,   // R -> 42
+                    0f, 0f, 0f, 0f, 51f,   // G -> 51
+                    0f, 0f, 0f, 0f, 80f,   // B -> 80
+                    0f, 0f, 0f, 1f, 0f     // A 保持
+                )
+            )
+        )
+    }
+
     private val rect = RectF()
+    private val artRect = RectF()
+
+    /** 已拿到的卡面位图（可能是 null：还在加载） */
+    private var artBitmap: Bitmap? = null
+    private var requestedArtId: Int = -1
 
     private var shimmerAnim: ValueAnimator? = null
 
@@ -90,6 +126,28 @@ class CardView @JvmOverloads constructor(
         }
     }
 
+    /** 按需加载卡面图，到位后 invalidate */
+    private fun ensureArt() {
+        val id = cardNumber
+        if (artBitmap != null || requestedArtId == id) return
+        requestedArtId = id
+        CardArt.load(context, id) { bmp ->
+            if (bmp != null && requestedArtId == id) {
+                artBitmap = bmp
+                invalidate()
+            }
+        }
+    }
+
+    /** 萌宠图目标区域：顶部留白 + 正方形主体，底部留给文字 */
+    private fun artRectOf(w: Float, h: Float): RectF {
+        val side = w * 0.86f
+        val left = (w - side) / 2f
+        val top = h * 0.05f
+        artRect.set(left, top, left + side, top + side)
+        return artRect
+    }
+
     // ---------------- 正面 ----------------
 
     private fun drawFace(canvas: Canvas) {
@@ -99,6 +157,7 @@ class CardView @JvmOverloads constructor(
         val r = radius
 
         if (locked) {
+            // 未收集：深底 + 虚线框 + 动物暗剪影 + 编号
             bgPaint.shader = LinearGradient(
                 0f, 0f, 0f, h,
                 Color.parseColor("#141826"), Color.parseColor("#0D101A"),
@@ -111,13 +170,17 @@ class CardView @JvmOverloads constructor(
             canvas.drawRoundRect(rect, r, r, borderPaint)
             borderPaint.pathEffect = null
 
-            numberPaint.textSize = minOf(w, h) * 0.34f
-            numberPaint.color = Color.parseColor("#4A5370")
-            canvas.drawText(cardNumber.toString(), w / 2, h / 2 + numberPaint.textSize * 0.3f, numberPaint)
+            ensureArt()
+            artBitmap?.let {
+                canvas.drawBitmap(it, null, artRectOf(w, h), silhouettePaint)
+            }
 
-            labelPaint.textSize = minOf(w, h) * 0.085f
-            labelPaint.color = Color.parseColor("#3D4560")
-            canvas.drawText("未收集", w / 2, h - dp(12f), labelPaint)
+            textPaint.textSize = minOf(w, h) * 0.10f
+            textPaint.color = Color.parseColor("#4A5370")
+            canvas.drawText(
+                CardCatalog.formattedNumber(cardNumber) + " · 未收集",
+                w / 2, h * 0.86f, textPaint
+            )
             return
         }
 
@@ -143,17 +206,30 @@ class CardView @JvmOverloads constructor(
             miscPaint.shader = null
         }
 
+        // 萌宠主体
+        ensureArt()
+        artBitmap?.let {
+            canvas.drawBitmap(it, null, artRectOf(w, h), artPaint)
+        }
+
         // 边框
         borderPaint.strokeWidth = dp(if (rarity.ordinal >= Rarity.GOLD.ordinal) 3f else 2f)
         borderPaint.color = rarity.color
         canvas.drawRoundRect(rect, r, r, borderPaint)
 
-        // 编号
-        numberPaint.textSize = minOf(w, h) * 0.38f
-        numberPaint.color = Color.WHITE
-        numberPaint.setShadowLayer(dp(4f), 0f, dp(2f), 0x66000000)
-        canvas.drawText(cardNumber.toString(), w / 2, h / 2 + numberPaint.textSize * 0.28f, numberPaint)
-        numberPaint.clearShadowLayer()
+        // 顶部编号
+        textPaint.textAlign = Paint.Align.LEFT
+        textPaint.textSize = minOf(w, h) * 0.075f
+        textPaint.color = 0xB3FFFFFF.toInt()
+        canvas.drawText(CardCatalog.formattedNumber(cardNumber), dp(9f), dp(17f), textPaint)
+        textPaint.textAlign = Paint.Align.CENTER
+
+        // 名称
+        labelPaint.textSize = minOf(w, h) * 0.115f
+        labelPaint.color = Color.WHITE
+        labelPaint.setShadowLayer(dp(3f), 0f, dp(1.5f), 0x66000000)
+        canvas.drawText(CardCatalog.nameOf(cardNumber), w / 2, h * 0.815f, labelPaint)
+        labelPaint.clearShadowLayer()
 
         // 稀有度标签（底部小胶囊）
         labelPaint.textSize = minOf(w, h) * 0.09f
@@ -171,7 +247,7 @@ class CardView @JvmOverloads constructor(
         canvas.drawText(text, w / 2, pill.top + padV + labelPaint.textSize * 0.82f, labelPaint)
     }
 
-    // ---------------- 剪影 ----------------
+    // ---------------- 生成中剪影（通用，不剧透是哪张卡） ----------------
 
     private fun drawSilhouette(canvas: Canvas) {
         val w = width.toFloat()
@@ -220,9 +296,9 @@ class CardView @JvmOverloads constructor(
         borderPaint.pathEffect = null
 
         // 中央问号
-        numberPaint.textSize = minOf(w, h) * 0.34f
-        numberPaint.color = Color.parseColor("#8E99C4")
-        canvas.drawText("?", w / 2, h / 2 + numberPaint.textSize * 0.3f, numberPaint)
+        textPaint.textSize = minOf(w, h) * 0.34f
+        textPaint.color = Color.parseColor("#8E99C4")
+        canvas.drawText("?", w / 2, h / 2 + textPaint.textSize * 0.3f, textPaint)
 
         // 底部提示
         labelPaint.textSize = minOf(w, h) * 0.085f

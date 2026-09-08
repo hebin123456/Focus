@@ -7,7 +7,7 @@ import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.CollectionRepository
 import me.hebin.focus.databinding.ActivityCollectionBinding
 
-/** 图鉴页：100 卡网格 + 收集进度 */
+/** 图鉴页：101 卡网格 + 收集进度 */
 class CollectionActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityCollectionBinding

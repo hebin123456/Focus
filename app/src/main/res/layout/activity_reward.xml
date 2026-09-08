@@ -70,7 +70,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:lineSpacingExtra="3dp"
-                android:text="集齐全部 100 张编号卡片（任意稀有度即可），兑换神秘大礼包一份"
+                android:text="集齐全部 101 张萌宠卡（任意稀有度即可），兑换神秘大礼包一份"
                 android:textColor="@color/textSecondary"
                 android:textSize="14sp" />
 
@@ -97,7 +97,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="10dp"
-                    android:text="0 / 100"
+                    android:text="0 / 101"
                     android:textColor="@color/textPrimary"
                     android:textSize="14sp"
                     android:textStyle="bold" />
