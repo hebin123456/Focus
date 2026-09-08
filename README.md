@@ -12,7 +12,17 @@
 | 掉落规则 | 专注时间越长，高稀有度概率越高；不同编号概率不同 |
 | 卡牌体系 | 100 张编号卡 × 5 种稀有度（普/铜/银/金/钻），金/钻卡有辉光 |
 | 图鉴系统 | 4 列网格展示收集进度，点开可看各稀有度持有数量 |
+| 每日登录 | 每天首次打开送随机卡；联网校验时间防改本地时间；连续登录越久卡越好（第 1 天≈10 分钟档，第 23 天起封顶 120 分钟档） |
+| 成就系统 | 20 个成就 × 点数（总计 525 点）：连续登录天数、集齐普/铜/银/金/钻各 100 张、专注时长/次数、首次金卡/钻石卡 |
+| 徽章系统 | 点数达 30/80/150/250 解锁青铜/白银/黄金/钻石徽章，可佩戴展示在主页标题旁 |
 | 奖励兑换 | 预留 `RewardApi` 接口，集齐 100 张可兑换奖品（当前为本地 Stub 实现） |
+
+### 每日登录防作弊设计
+
+- 发奖时间以**网络时间为准**（淘宝时间接口 → worldtimeapi → HTTPS Date 头，三级容错，全部 HTTPS）
+- 离线时用「上次可信网络时间 + elapsedRealtime 单调时钟」推算；设备重启后无法推算则**暂缓发奖**，等联网
+- 网络时间比上次记录早 60 秒以上（回拨）→ 拒绝发奖
+- 已知边界：专注计时尚用本地时钟，改时间可跳过等待（列入后续路线）
 
 ## 卡牌稀有度与掉落概率
 
@@ -27,16 +37,19 @@ app/src/main/java/me/hebin/focus/
 ├── data/
 │   ├── Rarity.kt              # 稀有度枚举（配色）
 │   ├── CardCatalog.kt         # 100 张卡定义 + 编号概率
-│   ├── DropEngine.kt          # 掉落概率引擎
-│   ├── CollectionRepository.kt# 图鉴/统计持久化（SharedPreferences+JSON）
+│   ├── DropEngine.kt          # 掉落概率引擎（专注掉卡 + 每日登录）
+│   ├── CollectionRepository.kt# 图鉴/统计/每日登录/成就持久化
+│   ├── DailyLoginManager.kt   # 每日登录：联网时间校验 + streak + 发卡
+│   ├── Achievements.kt        # 成就定义 / 点数 / 徽章 / 解锁检查
 │   └── RewardApi.kt           # 奖励兑换接口 + Stub 实现
 ├── session/
 │   └── FocusSessionManager.kt # 专注会话状态机（进程级单例）
 └── ui/
-    ├── MainActivity.kt        # 主页：时长选择 + 统计
+    ├── MainActivity.kt        # 主页：时长选择 + 统计 + 徽章展示 + 每日领卡
     ├── FocusActivity.kt       # 专注页：计时/剪影/碎裂/翻卡
     ├── CollectionActivity.kt  # 图鉴页
     ├── CardGridAdapter.kt     # 图鉴网格适配器
+    ├── AchievementActivity.kt # 成就页：点数/徽章佩戴/成就进度
     ├── RewardActivity.kt      # 兑换页
     └── view/CardView.kt       # 卡片自绘控件（正面/剪影两种模式）
 ```
@@ -61,7 +74,8 @@ GitHub Actions 已配置（`.github/workflows/android.yml`）：push 到 master 
 ## 后续路线
 
 - [ ] 美术卡面替换（100 张插画）
+- [ ] 专注计时防作弊（elapsedRealtime 替代 currentTimeMillis + 网络校验）
 - [ ] 后端接入：账号系统、`RewardApi` 真实实现、防作弊校验
 - [ ] 白噪音 / 深度专注模式
 - [ ] 卡片分解与合成（重复卡再利用）
-- [ ] 集换社交（与好友交换重复卡）
+- [ ] 集换社交（与好友交换重复卡、徽章展示互动）

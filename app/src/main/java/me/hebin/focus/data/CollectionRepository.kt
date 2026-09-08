@@ -19,20 +19,33 @@ class CollectionRepository private constructor(context: Context) {
     private val prefs = context.applicationContext
         .getSharedPreferences("focus_cards", Context.MODE_PRIVATE)
 
+    /** 图鉴内存缓存：编号 -> (稀有度 -> 数量)。addCard 时失效重建。 */
+    private var cardsCache: HashMap<Int, HashMap<Rarity, Int>>? = null
+
+    private fun cardsMap(): HashMap<Int, HashMap<Rarity, Int>> {
+        var m = cardsCache
+        if (m == null) {
+            m = HashMap()
+            val root = JSONObject(prefs.getString(KEY_CARDS, "{}"))
+            for (k in root.keys()) {
+                val id = k.toIntOrNull() ?: continue
+                val o = root.optJSONObject(k) ?: continue
+                val inner = HashMap<Rarity, Int>()
+                for (r in Rarity.entries) {
+                    val c = o.optInt(r.ordinal.toString(), 0)
+                    if (c > 0) inner[r] = c
+                }
+                m[id] = inner
+            }
+            cardsCache = m
+        }
+        return m
+    }
+
     // ---------- 图鉴 ----------
 
     /** 指定编号各稀有度的拥有数量 */
-    fun ownedCounts(cardId: Int): Map<Rarity, Int> {
-        val root = JSONObject(prefs.getString(KEY_CARDS, "{}"))
-        if (!root.has(cardId.toString())) return emptyMap()
-        val o = root.getJSONObject(cardId.toString())
-        val result = mutableMapOf<Rarity, Int>()
-        for (r in Rarity.entries) {
-            val c = o.optInt(r.ordinal.toString(), 0)
-            if (c > 0) result[r] = c
-        }
-        return result
-    }
+    fun ownedCounts(cardId: Int): Map<Rarity, Int> = cardsMap()[cardId] ?: emptyMap()
 
     fun bestRarity(cardId: Int): Rarity? = ownedCounts(cardId).keys.maxByOrNull { it.ordinal }
 
@@ -45,23 +58,27 @@ class CollectionRepository private constructor(context: Context) {
         o.put(rarity.ordinal.toString(), o.optInt(rarity.ordinal.toString(), 0) + 1)
         root.put(key, o)
         prefs.edit().putString(KEY_CARDS, root.toString()).apply()
+        cardsCache = null
     }
 
     /** 已集齐（至少拥有普卡版本）的编号数 */
-    fun collectedCount(): Int = (1..CardCatalog.TOTAL).count { isOwned(it) }
+    fun collectedCount(): Int = distinctOwnedCount()
 
     /** 拥有的卡片总张数（含重复与各稀有度） */
-    fun totalCardsOwned(): Int {
-        val root = JSONObject(prefs.getString(KEY_CARDS, "{}"))
-        var total = 0
-        for (k in root.keys()) {
-            val o = root.optJSONObject(k) ?: continue
-            for (rk in o.keys()) total += o.optInt(rk, 0)
-        }
-        return total
-    }
+    fun totalCardsOwned(): Int = cardsMap().values.sumOf { it.values.sum() }
 
-    fun isFullSet(): Boolean = collectedCount() >= CardCatalog.TOTAL
+    fun isFullSet(): Boolean = distinctOwnedCount() >= CardCatalog.TOTAL
+
+    // ---------- 图鉴统计（成就用） ----------
+
+    /** 拥有的不同编号数（任意稀有度） */
+    fun distinctOwnedCount(): Int = (1..CardCatalog.TOTAL).count { !cardsMap()[it].isNullOrEmpty() }
+
+    /** 指定稀有度已集齐的编号数（如：铜卡版本已收 37/100） */
+    fun rarityOwnedCount(r: Rarity): Int = (1..CardCatalog.TOTAL).count { (cardsMap()[it]?.get(r) ?: 0) > 0 }
+
+    /** 是否拥有过某个稀有度（用于「首次金卡/钻石卡」成就） */
+    fun hasRarity(r: Rarity): Boolean = rarityOwnedCount(r) > 0
 
     // ---------- 统计 ----------
 
@@ -80,6 +97,46 @@ class CollectionRepository private constructor(context: Context) {
     fun addFocusMinutes(m: Int) { totalFocusMinutes += m }
     fun addFinishedSession() { finishedSessions += 1 }
     fun addCrack() { crackedCount += 1 }
+
+    // ---------- 每日登录（联网校验时间） ----------
+
+    /** 最近一次领奖的本地时区天序号，-1 = 从未领过 */
+    var lastClaimDay: Long
+        get() = prefs.getLong(KEY_LAST_CLAIM_DAY, -1L)
+        set(v) = prefs.edit().putLong(KEY_LAST_CLAIM_DAY, v).apply()
+
+    /** 当前连续登录天数 */
+    var loginStreak: Int
+        get() = prefs.getInt(KEY_LOGIN_STREAK, 0)
+        set(v) = prefs.edit().putInt(KEY_LOGIN_STREAK, v).apply()
+
+    /** 最近一次可信网络时间(ms)，用于离线推算与防回拨 */
+    var lastNetworkTimeMs: Long
+        get() = prefs.getLong(KEY_LAST_NET_TIME, 0L)
+        set(v) = prefs.edit().putLong(KEY_LAST_NET_TIME, v).apply()
+
+    /** 上述网络时间对应的 SystemClock.elapsedRealtime() */
+    var lastElapsedRealtimeMs: Long
+        get() = prefs.getLong(KEY_LAST_ELAPSED, 0L)
+        set(v) = prefs.edit().putLong(KEY_LAST_ELAPSED, v).apply()
+
+    // ---------- 成就与徽章 ----------
+
+    fun unlockedAchievementIds(): Set<String> =
+        prefs.getStringSet(KEY_ACHIEVEMENTS, emptySet()) ?: emptySet()
+
+    fun unlockAchievement(id: String) {
+        prefs.edit().putStringSet(KEY_ACHIEVEMENTS, unlockedAchievementIds() + id).apply()
+    }
+
+    /** 佩戴中的徽章 id，null = 未佩戴 */
+    var equippedBadgeId: String?
+        get() = prefs.getString(KEY_EQUIPPED_BADGE, null)
+        set(v) {
+            val e = prefs.edit()
+            if (v != null) e.putString(KEY_EQUIPPED_BADGE, v) else e.remove(KEY_EQUIPPED_BADGE)
+            e.apply()
+        }
 
     // ---------- 后台完成的掉落（防丢） ----------
 
@@ -106,6 +163,12 @@ class CollectionRepository private constructor(context: Context) {
         private const val KEY_SESSIONS = "sessions"
         private const val KEY_CRACKED = "cracked"
         private const val KEY_PENDING = "pendingDrop"
+        private const val KEY_LAST_CLAIM_DAY = "lastClaimDay"
+        private const val KEY_LOGIN_STREAK = "loginStreak"
+        private const val KEY_LAST_NET_TIME = "lastNetworkTime"
+        private const val KEY_LAST_ELAPSED = "lastElapsedRealtime"
+        private const val KEY_ACHIEVEMENTS = "achievements"
+        private const val KEY_EQUIPPED_BADGE = "equippedBadge"
 
         @Volatile private var instance: CollectionRepository? = null
 

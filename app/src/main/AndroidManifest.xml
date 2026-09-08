@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- 每日登录需联网校验时间 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
@@ -29,6 +32,10 @@
 
         <activity
             android:name=".ui.RewardActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".ui.AchievementActivity"
             android:exported="false" />
     </application>
 

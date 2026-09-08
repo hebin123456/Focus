@@ -37,6 +37,15 @@ object DropEngine {
         return Drop(card.id, Rarity.fromOrdinalSafe(tier))
     }
 
+    /**
+     * 每日登录奖励：把连续登录天数映射为「等效专注分钟」复用同一套掉落规则，
+     * 连续登录越久，卡越好。第 1 天≈10 分钟档，第 23 天起封顶 120 分钟档。
+     */
+    fun rollForLogin(streak: Int, rng: Random = Random.Default): Drop {
+        val equivalentMinutes = (10 + (streak - 1).coerceAtLeast(0) * 5).coerceIn(10, 120)
+        return roll(equivalentMinutes, rng)
+    }
+
     private fun <T> weightedPick(items: List<T>, weights: List<Double>, rng: Random): T? {
         val total = weights.sum()
         if (total <= 0.0 || items.isEmpty()) return null
