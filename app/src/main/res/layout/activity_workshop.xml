@@ -60,12 +60,19 @@
                 android:text="分解" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnTabSynthesize"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="合成" />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
+            android:id="@+id/btnTabSynthesize"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="合成" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnTabConvert"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="转换" />
+    </com.google.android.material.button.MaterialButtonToggleGroup>
 
         <TextView
             android:id="@+id/textCraftHint"
@@ -157,6 +164,52 @@
                 android:text="从上方选择 1 张要分解的卡片"
                 android:textColor="@color/textPrimary"
                 android:textSize="14sp" />
+
+            <!-- 道具入口：定向分解 / 定向合成（持有对应道具时显示） -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnStoneAction"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="46dp"
+                android:layout_marginTop="10dp"
+                android:text="定向分解"
+                android:textSize="13sp"
+                android:visibility="gone"
+                app:cornerRadius="14dp"
+                app:strokeWidth="1dp" />
+
+            <!-- 道具入口：转换模式双按钮（持有对应道具时显示） -->
+            <LinearLayout
+                android:id="@+id/rowConvertStones"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnConvertRandom"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="46dp"
+                    android:layout_weight="1"
+                    android:text="随机转换"
+                    android:textSize="13sp"
+                    app:cornerRadius="14dp"
+                    app:strokeWidth="1dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnConvertPick"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="46dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="定向转换"
+                    android:textSize="13sp"
+                    app:cornerRadius="14dp"
+                    app:strokeWidth="1dp" />
+            </LinearLayout>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCraftAction"

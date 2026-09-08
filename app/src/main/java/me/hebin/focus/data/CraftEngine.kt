@@ -44,17 +44,82 @@ object CraftEngine {
         if (picks.size != 3) return null
         val r = picks.first().second
         if (picks.any { it.second != r }) return null
-
-        // 先整体校验持有量，再逐组扣除，避免中途失败产生半成品
-        val need = HashMap<Pair<Int, Rarity>, Int>()
-        picks.forEach { need[it] = (need[it] ?: 0) + 1 }
-        need.forEach { (slot, c) ->
-            if ((repo.ownedCounts(slot.first)[slot.second] ?: 0) < c) return null
-        }
-        need.forEach { (slot, c) -> repo.consumeCard(slot.first, slot.second, c) }
+        if (!consumePicks(repo, picks)) return null
 
         val drop = DropEngine.Drop(rollRandomCardId(), synthesizeTarget(r))
         repo.addCard(drop.cardId, drop.rarity)
         return drop
+    }
+
+    // ---------- 道具定向操作（消耗品由调用方扣除） ----------
+
+    /** 校验并扣除 picks（3 张同稀有度），不足返回 false */
+    private fun consumePicks(repo: CollectionRepository, picks: List<Pair<Int, Rarity>>): Boolean {
+        // 先整体校验持有量，再逐组扣除，避免中途失败产生半成品
+        val need = HashMap<Pair<Int, Rarity>, Int>()
+        picks.forEach { need[it] = (need[it] ?: 0) + 1 }
+        need.forEach { (slot, c) ->
+            if ((repo.ownedCounts(slot.first)[slot.second] ?: 0) < c) return false
+        }
+        need.forEach { (slot, c) -> repo.consumeCard(slot.first, slot.second, c) }
+        return true
+    }
+
+    /** 分解石定向分解：1 张卡 → 3 张指定编号的低一级稀有度卡（可指定同一张） */
+    fun decomposeInto(
+        repo: CollectionRepository,
+        cardId: Int,
+        rarity: Rarity,
+        targetId: Int
+    ): List<DropEngine.Drop>? {
+        val lower = decomposeTarget(rarity) ?: return null
+        if (targetId !in 1..CardCatalog.TOTAL) return null
+        if (!repo.consumeCard(cardId, rarity, 1)) return null
+        repeat(3) { repo.addCard(targetId, lower) }
+        return List(3) { DropEngine.Drop(targetId, lower) }
+    }
+
+    /** 合成石定向合成：3 张同稀有度卡 → 1 张指定编号的高一级稀有度卡（不越级；钻石→指定钻石） */
+    fun synthesizeInto(
+        repo: CollectionRepository,
+        picks: List<Pair<Int, Rarity>>,
+        targetId: Int
+    ): DropEngine.Drop? {
+        if (picks.size != 3) return null
+        val r = picks.first().second
+        if (picks.any { it.second != r }) return null
+        if (targetId !in 1..CardCatalog.TOTAL) return null
+        if (!consumePicks(repo, picks)) return null
+
+        val drop = DropEngine.Drop(targetId, synthesizeTarget(r))
+        repo.addCard(drop.cardId, drop.rarity)
+        return drop
+    }
+
+    /** 转换石随机转换：1 张卡 → 随机同品质的另一张（必定不同编号） */
+    fun convertRandom(
+        repo: CollectionRepository,
+        cardId: Int,
+        rarity: Rarity,
+        rng: Random = Random.Default
+    ): DropEngine.Drop? {
+        if (!repo.consumeCard(cardId, rarity, 1)) return null
+        val candidates = (1..CardCatalog.TOTAL).filter { it != cardId }
+        val newId = candidates[rng.nextInt(candidates.size)]
+        repo.addCard(newId, rarity)
+        return DropEngine.Drop(newId, rarity)
+    }
+
+    /** 超级转换石定向转换：1 张卡 → 指定编号的同品质卡 */
+    fun convertInto(
+        repo: CollectionRepository,
+        cardId: Int,
+        rarity: Rarity,
+        targetId: Int
+    ): DropEngine.Drop? {
+        if (targetId == cardId || targetId !in 1..CardCatalog.TOTAL) return null
+        if (!repo.consumeCard(cardId, rarity, 1)) return null
+        repo.addCard(targetId, rarity)
+        return DropEngine.Drop(targetId, rarity)
     }
 }

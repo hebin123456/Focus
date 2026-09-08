@@ -13,7 +13,7 @@ import me.hebin.focus.databinding.ItemShopRowBinding
 
 /**
  * 道具商店：金币余额 + 商店列表 + 我的背包。
- * 金币在 App 前台时线性累积（每满 1 分钟 +1）；道具清单暂空，框架已就绪。
+ * 金币在 App 前台时线性累积（每满 1 分钟 +1）；道具在卡片工坊使用。
  */
 class ShopActivity : AppCompatActivity() {
 

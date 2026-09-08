@@ -4,7 +4,7 @@ import android.content.Context
 import me.hebin.focus.FocusApp
 import org.json.JSONObject
 
-/** 商店道具定义（内容待设计，先空着） */
+/** 商店道具定义 */
 data class ShopItem(
     val id: String,
     val name: String,
@@ -14,11 +14,38 @@ data class ShopItem(
 
 object ItemCatalog {
 
+    /** 道具 ID */
+    const val ID_FORGE = "forge_stone"       // 合成石
+    const val ID_SPLIT = "split_stone"       // 分解石
+    const val ID_SWAP = "swap_stone"         // 转换石
+    const val ID_MEGA_SWAP = "mega_swap"     // 超级转换石
+
     /**
-     * 道具清单：暂为空。
-     * 确定道具后在这里补充即可，商店 / 背包 / 购买流程均已就绪。
+     * 道具清单：工坊定向操作道具。
+     * 全部为一次性消耗品，在卡片工坊使用。
      */
-    val items: List<ShopItem> = emptyList()
+    val items: List<ShopItem> = listOf(
+        ShopItem(
+            ID_FORGE, "合成石",
+            "合成时指定目标卡片：3 张同稀有度卡合成 1 张指定的下一级稀有度卡（不越级；3 张钻石可指定任意钻石卡）",
+            100
+        ),
+        ShopItem(
+            ID_SPLIT, "分解石",
+            "分解时指定产物：1 张卡分解为 3 张指定的下一级稀有度卡片（可指定同一张，普卡不可分解）",
+            100
+        ),
+        ShopItem(
+            ID_SWAP, "转换石",
+            "1 张卡片转换成随机的另一张同品质卡片（必定不同编号）",
+            50
+        ),
+        ShopItem(
+            ID_MEGA_SWAP, "超级转换石",
+            "1 张卡片转换成指定的同品质卡片",
+            100
+        )
+    )
 
     fun byId(id: String): ShopItem? = items.firstOrNull { it.id == id }
 }
@@ -75,6 +102,18 @@ class ShopStore private constructor(context: Context) {
         val o = invJson()
         o.put(id, o.optInt(id, 0) + n)
         prefs.edit().putString(KEY_INVENTORY, o.toString()).apply()
+    }
+
+    /** 消耗道具（工坊定向操作用），数量不足返回 false */
+    fun consumeItem(id: String, n: Int = 1): Boolean {
+        if (n <= 0) return true
+        val o = invJson()
+        val cur = o.optInt(id, 0)
+        if (cur < n) return false
+        val left = cur - n
+        if (left > 0) o.put(id, left) else o.remove(id)
+        prefs.edit().putString(KEY_INVENTORY, o.toString()).apply()
+        return true
     }
 
     /** 购买：扣金币 → 入背包 */

@@ -26,12 +26,16 @@ import com.google.android.material.chip.ChipGroup
 import me.hebin.focus.R
 import me.hebin.focus.data.Achievements
 import me.hebin.focus.data.CardCatalog
+import me.hebin.focus.data.CardDef
 import me.hebin.focus.data.CollectionRepository
 import me.hebin.focus.data.CraftEngine
 import me.hebin.focus.data.DropEngine
+import me.hebin.focus.data.ItemCatalog
 import me.hebin.focus.data.Rarity
+import me.hebin.focus.data.ShopStore
 import me.hebin.focus.databinding.ActivityWorkshopBinding
 import me.hebin.focus.databinding.ItemCraftCardBinding
+import me.hebin.focus.databinding.ItemPickCardBinding
 import me.hebin.focus.ui.view.CardView
 import java.util.Random
 import kotlin.math.abs
@@ -46,7 +50,7 @@ import kotlin.math.sin
  */
 class WorkshopActivity : AppCompatActivity() {
 
-    private enum class Mode { DECOMPOSE, SYNTHESIZE }
+    private enum class Mode { DECOMPOSE, SYNTHESIZE, CONVERT }
 
     private lateinit var binding: ActivityWorkshopBinding
     private lateinit var adapter: CraftAdapter
@@ -84,12 +88,19 @@ class WorkshopActivity : AppCompatActivity() {
 
         binding.toggleMode.addOnButtonCheckedListener { _, checkedId, isChecked ->
             if (!isChecked) return@addOnButtonCheckedListener
-            mode = if (checkedId == R.id.btnTabDecompose) Mode.DECOMPOSE else Mode.SYNTHESIZE
+            mode = when (checkedId) {
+                R.id.btnTabDecompose -> Mode.DECOMPOSE
+                R.id.btnTabSynthesize -> Mode.SYNTHESIZE
+                else -> Mode.CONVERT
+            }
             reload()
         }
         binding.toggleMode.check(R.id.btnTabDecompose)
 
         binding.btnCraftAction.setOnClickListener { performCraft() }
+        binding.btnStoneAction.setOnClickListener { performStoneAction() }
+        binding.btnConvertRandom.setOnClickListener { performConvertRandom() }
+        binding.btnConvertPick.setOnClickListener { performConvertPick() }
     }
 
     override fun onDestroy() {
@@ -101,7 +112,7 @@ class WorkshopActivity : AppCompatActivity() {
         val repo = CollectionRepository.get(this)
         slots = when (mode) {
             Mode.DECOMPOSE -> repo.ownedSlots().filter { it.second != Rarity.COMMON }
-            Mode.SYNTHESIZE -> repo.ownedSlots()
+            Mode.SYNTHESIZE, Mode.CONVERT -> repo.ownedSlots()
         }
         // 分解模式不涉及普卡，停在普卡筛选会一无所获，自动重置
         if (mode == Mode.DECOMPOSE && filterRarity == Rarity.COMMON) filterRarity = null
@@ -110,14 +121,17 @@ class WorkshopActivity : AppCompatActivity() {
         refreshFilterChips()
 
         binding.textCraftHint.text = when (mode) {
-            Mode.DECOMPOSE -> "选择 1 张卡片分解，随机获得 3 张低一级稀有度的卡片（普卡不可分解；只剩 1 张的卡会被保护，不可用）"
-            Mode.SYNTHESIZE -> "选 3 张同稀有度卡片（可不同编号，重复点同张卡可叠加）合成 1 张更高稀有度的卡片；3 张钻石合成随机钻石卡；只剩 1 张的卡会被保护，不可用"
+            Mode.DECOMPOSE -> "选择 1 张卡片分解，随机获得 3 张低一级稀有度的卡片（普卡不可分解；只剩 1 张的卡会被保护，不可用）\n持有分解石可定向指定产物"
+            Mode.SYNTHESIZE -> "选 3 张同稀有度卡片（可不同编号，重复点同张卡可叠加）合成 1 张更高稀有度的卡片；3 张钻石合成随机钻石卡；只剩 1 张的卡会被保护，不可用\n持有合成石可定向指定目标"
+            Mode.CONVERT -> "选 1 张卡片，用转换石换成随机的另一张同品质卡，或用超级转换石换成指定的同品质卡；只剩 1 张的卡会被保护，不可用"
         }
         refreshBottomBar()
     }
 
     /** 按筛选条件过滤展示槽位 */
     private fun applyFilter() {
+        // shown 顺序随筛选变化，selected 存的是 shown 下标，筛选变化必须清空防止错位
+        selected.clear()
         shown = slots.filter { (id, r, _) ->
             (filterRarity == null || r == filterRarity) &&
                 (filterCategory == null || CardCatalog.categoryOfId(id) == filterCategory)
@@ -131,7 +145,7 @@ class WorkshopActivity : AppCompatActivity() {
                     Mode.DECOMPOSE ->
                         if (CollectionRepository.get(this).totalCardsOwned() > 0) "没有可分解的卡片\n只有铜卡及以上可以分解"
                         else "还没有卡片\n先去专注集卡吧"
-                    Mode.SYNTHESIZE -> "还没有卡片\n先去专注集卡吧"
+                    Mode.SYNTHESIZE, Mode.CONVERT -> "还没有卡片\n先去专注集卡吧"
                 }
             }
 
@@ -142,6 +156,7 @@ class WorkshopActivity : AppCompatActivity() {
 
             else -> binding.textCraftEmpty.isVisible = false
         }
+        refreshBottomBar()
     }
 
     /** 刷新筛选 Chip（稀有度 + 类别），仅在无筛选时重建避免打断选中态 */
@@ -206,7 +221,8 @@ class WorkshopActivity : AppCompatActivity() {
             return
         }
         when (mode) {
-            Mode.DECOMPOSE -> {
+            Mode.DECOMPOSE, Mode.CONVERT -> {
+                // 分解 / 转换都是单选
                 selected.clear()
                 selected[position] = 1
             }
@@ -225,7 +241,7 @@ class WorkshopActivity : AppCompatActivity() {
                     selected[position] = cur + 1
                 } else {
                     val first = selected.entries.firstOrNull()
-                    if (first != null && slots[first.key].second != rarity) {
+                    if (first != null && shown[first.key].second != rarity) {
                         Toast.makeText(this, "只能选择同一种稀有度", Toast.LENGTH_SHORT).show()
                         return
                     }
@@ -238,30 +254,43 @@ class WorkshopActivity : AppCompatActivity() {
     }
 
     private fun refreshBottomBar() {
+        val shop = ShopStore.get(this)
         when (mode) {
             Mode.DECOMPOSE -> {
+                binding.btnCraftAction.isVisible = true
                 binding.btnCraftAction.text = "分解"
+                binding.rowConvertStones.isVisible = false
                 val sel = selected.entries.firstOrNull()
                 if (sel == null) {
                     binding.textCraftSummary.text = "从上方选择 1 张要分解的卡片"
                     binding.btnCraftAction.isEnabled = false
                 } else {
-                    val (id, r, _) = slots[sel.key]
+                    val (id, r, _) = shown[sel.key]
                     val lower = CraftEngine.decomposeTarget(r) ?: return
                     binding.textCraftSummary.text =
                         "分解 ${CardCatalog.displayName(id)} · ${r.label}\n→ 随机获得 3 张${lower.label}"
                     binding.btnCraftAction.isEnabled = true
                 }
+
+                // 分解石：定向分解入口（持有才显示）
+                val stones = shop.itemCount(ItemCatalog.ID_SPLIT)
+                binding.btnStoneAction.isVisible = stones > 0
+                if (stones > 0) {
+                    binding.btnStoneAction.text = "定向分解 · 分解石 ×$stones"
+                    binding.btnStoneAction.isEnabled = sel != null
+                }
             }
 
             Mode.SYNTHESIZE -> {
+                binding.btnCraftAction.isVisible = true
                 binding.btnCraftAction.text = "合成"
+                binding.rowConvertStones.isVisible = false
                 val total = selected.values.sum()
                 if (total == 0) {
                     binding.textCraftSummary.text = "从上方选择 3 张同稀有度卡片"
                     binding.btnCraftAction.isEnabled = false
                 } else {
-                    val r = slots[selected.keys.first()].second
+                    val r = shown[selected.keys.first()].second
                     val target = CraftEngine.synthesizeTarget(r)
                     val targetText =
                         if (r == Rarity.DIAMOND) "随机一张钻石卡（重抽压轴卡）"
@@ -269,6 +298,44 @@ class WorkshopActivity : AppCompatActivity() {
                     binding.textCraftSummary.text =
                         "已选 $total / 3 张${r.label}\n→ $targetText"
                     binding.btnCraftAction.isEnabled = total == 3
+                }
+
+                // 合成石：定向合成入口（持有才显示）
+                val stones = shop.itemCount(ItemCatalog.ID_FORGE)
+                binding.btnStoneAction.isVisible = stones > 0
+                if (stones > 0) {
+                    binding.btnStoneAction.text = "定向合成 · 合成石 ×$stones"
+                    binding.btnStoneAction.isEnabled = total == 3
+                }
+            }
+
+            Mode.CONVERT -> {
+                binding.btnCraftAction.isVisible = false
+                binding.btnStoneAction.isVisible = false
+
+                val sel = selected.entries.firstOrNull()
+                val swap = shop.itemCount(ItemCatalog.ID_SWAP)
+                val mega = shop.itemCount(ItemCatalog.ID_MEGA_SWAP)
+                binding.rowConvertStones.isVisible = swap > 0 || mega > 0
+                binding.btnConvertRandom.isVisible = swap > 0
+                binding.btnConvertPick.isVisible = mega > 0
+                if (swap > 0) {
+                    binding.btnConvertRandom.text = "随机转换 · 转换石 ×$swap"
+                    binding.btnConvertRandom.isEnabled = sel != null
+                }
+                if (mega > 0) {
+                    binding.btnConvertPick.text = "定向转换 · 超级转换石 ×$mega"
+                    binding.btnConvertPick.isEnabled = sel != null
+                }
+
+                binding.textCraftSummary.text = when {
+                    sel == null && swap == 0 && mega == 0 ->
+                        "转换 = 同品质卡片互换\n转换道具可去商店购买"
+                    sel == null -> "从上方选择 1 张要转换的卡片"
+                    else -> {
+                        val (id, r, _) = shown[sel.key]
+                        "转换 ${CardCatalog.displayName(id)} · ${r.label}\n→ 同品质的另一张卡"
+                    }
                 }
             }
         }
@@ -280,7 +347,7 @@ class WorkshopActivity : AppCompatActivity() {
         when (mode) {
             Mode.DECOMPOSE -> {
                 val sel = selected.entries.firstOrNull() ?: return
-                val (id, r, _) = slots[sel.key]
+                val (id, r, _) = shown[sel.key]
                 val lower = CraftEngine.decomposeTarget(r) ?: return
                 AlertDialog.Builder(this)
                     .setTitle("确认分解")
@@ -309,7 +376,7 @@ class WorkshopActivity : AppCompatActivity() {
             Mode.SYNTHESIZE -> {
                 if (selected.values.sum() != 3) return
                 val picks = selected.flatMap { (pos, n) ->
-                    List(n) { slots[pos].first to slots[pos].second }
+                    List(n) { shown[pos].first to shown[pos].second }
                 }
                 val r = picks.first().second
                 val targetText =
@@ -333,8 +400,248 @@ class WorkshopActivity : AppCompatActivity() {
                     .setNegativeButton("再想想", null)
                     .show()
             }
+
+            Mode.CONVERT -> return // 转换走道具按钮，无普通操作
         }
     }
+
+    // ---------------- 道具定向操作 ----------------
+
+    /** 分解石 / 合成石：弹目标选择器后二次确认执行 */
+    private fun performStoneAction() {
+        if (animating) return
+        when (mode) {
+            Mode.DECOMPOSE -> {
+                val sel = selected.entries.firstOrNull() ?: return
+                val (id, r, _) = shown[sel.key]
+                val lower = CraftEngine.decomposeTarget(r) ?: return
+                showTargetPicker("选择分解产物 · ${lower.label}", lower) { targetId ->
+                    val name = CardCatalog.displayName(targetId)
+                    AlertDialog.Builder(this)
+                        .setTitle("确认定向分解")
+                        .setMessage(
+                            "将分解 ${CardCatalog.displayName(id)} · ${r.label}，" +
+                                "获得 3 张指定的${lower.label}「$name」，并消耗 1 个分解石。确定吗？"
+                        )
+                        .setPositiveButton("分解") { d, _ ->
+                            d.dismiss()
+                            if (!ShopStore.get(this).consumeItem(ItemCatalog.ID_SPLIT)) {
+                                Toast.makeText(this, "分解石不足", Toast.LENGTH_SHORT).show()
+                                return@setPositiveButton
+                            }
+                            val result = CraftEngine.decomposeInto(CollectionRepository.get(this), id, r, targetId)
+                            if (result == null) {
+                                Toast.makeText(this, "分解失败：卡片已不在背包", Toast.LENGTH_SHORT).show()
+                                reload()
+                            } else {
+                                reload()
+                                playDecomposeAnim(id, r, result) { showResult("定向分解成功", result) }
+                            }
+                        }
+                        .setNegativeButton("再想想", null)
+                        .show()
+                }
+            }
+
+            Mode.SYNTHESIZE -> {
+                if (selected.values.sum() != 3) return
+                val picks = selected.flatMap { (pos, n) ->
+                    List(n) { shown[pos].first to shown[pos].second }
+                }
+                val r = picks.first().second
+                val targetR = CraftEngine.synthesizeTarget(r)
+                showTargetPicker("选择合成目标 · ${targetR.label}", targetR) { targetId ->
+                    val name = CardCatalog.displayName(targetId)
+                    AlertDialog.Builder(this)
+                        .setTitle("确认定向合成")
+                        .setMessage(
+                            "将消耗 3 张${r.label}，合成指定的${targetR.label}「$name」，并消耗 1 个合成石。确定吗？"
+                        )
+                        .setPositiveButton("合成") { d, _ ->
+                            d.dismiss()
+                            if (!ShopStore.get(this).consumeItem(ItemCatalog.ID_FORGE)) {
+                                Toast.makeText(this, "合成石不足", Toast.LENGTH_SHORT).show()
+                                return@setPositiveButton
+                            }
+                            val result = CraftEngine.synthesizeInto(CollectionRepository.get(this), picks, targetId)
+                            if (result == null) {
+                                Toast.makeText(this, "合成失败：卡片数量不足", Toast.LENGTH_SHORT).show()
+                                reload()
+                            } else {
+                                reload()
+                                playSynthesizeAnim(picks, result) { showResult("定向合成成功", listOf(result)) }
+                            }
+                        }
+                        .setNegativeButton("再想想", null)
+                        .show()
+                }
+            }
+
+            Mode.CONVERT -> Unit
+        }
+    }
+
+    /** 转换石：1 张卡 → 随机同品质另一张 */
+    private fun performConvertRandom() {
+        if (animating) return
+        val sel = selected.entries.firstOrNull() ?: return
+        val (id, r, _) = shown[sel.key]
+        AlertDialog.Builder(this)
+            .setTitle("确认随机转换")
+            .setMessage(
+                "将 ${CardCatalog.displayName(id)} · ${r.label} 转换成随机的另一张${r.label}（必定不同卡），" +
+                    "并消耗 1 个转换石。确定吗？"
+            )
+            .setPositiveButton("转换") { d, _ ->
+                d.dismiss()
+                if (!ShopStore.get(this).consumeItem(ItemCatalog.ID_SWAP)) {
+                    Toast.makeText(this, "转换石不足", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val result = CraftEngine.convertRandom(CollectionRepository.get(this), id, r)
+                if (result == null) {
+                    Toast.makeText(this, "转换失败：卡片已不在背包", Toast.LENGTH_SHORT).show()
+                    reload()
+                } else {
+                    reload()
+                    playConvertAnim(id to r, result) { showResult("转换成功", listOf(result)) }
+                }
+            }
+            .setNegativeButton("再想想", null)
+            .show()
+    }
+
+    /** 超级转换石：1 张卡 → 指定同品质卡 */
+    private fun performConvertPick() {
+        if (animating) return
+        val sel = selected.entries.firstOrNull() ?: return
+        val (id, r, _) = shown[sel.key]
+        showTargetPicker("选择转换目标 · ${r.label}", r, excludeId = id) { targetId ->
+            val name = CardCatalog.displayName(targetId)
+            AlertDialog.Builder(this)
+                .setTitle("确认定向转换")
+                .setMessage(
+                    "将 ${CardCatalog.displayName(id)} · ${r.label} 转换成指定的${r.label}「$name」，" +
+                        "并消耗 1 个超级转换石。确定吗？"
+                )
+                .setPositiveButton("转换") { d, _ ->
+                    d.dismiss()
+                    if (!ShopStore.get(this).consumeItem(ItemCatalog.ID_MEGA_SWAP)) {
+                        Toast.makeText(this, "超级转换石不足", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
+                    val result = CraftEngine.convertInto(CollectionRepository.get(this), id, r, targetId)
+                    if (result == null) {
+                        Toast.makeText(this, "转换失败：卡片已不在背包", Toast.LENGTH_SHORT).show()
+                        reload()
+                    } else {
+                        reload()
+                        playConvertAnim(id to r, result) { showResult("转换成功", listOf(result)) }
+                    }
+                }
+                .setNegativeButton("再想想", null)
+                .show()
+        }
+    }
+
+    /**
+     * 目标卡选择器：指定稀有度的 101 张卡网格 + 类别筛选 + 勾选。
+     * [excludeId] 指定的编号不可选（定向转换不能转成同一张）。
+     */
+    private fun showTargetPicker(
+        title: String,
+        rarity: Rarity,
+        excludeId: Int = -1,
+        onPick: (Int) -> Unit
+    ) {
+        val view = layoutInflater.inflate(R.layout.dialog_pick_card, null)
+        // 固定高度，让内部 RecyclerView 的 weight 生效并可滚动
+        view.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            (resources.displayMetrics.heightPixels * 0.58f).toInt()
+        )
+
+        val recycler = view.findViewById<RecyclerView>(R.id.recyclerPick)
+        val chipGroup = view.findViewById<ChipGroup>(R.id.chipPickCategory)
+
+        var category: String? = null
+        var picked = -1
+
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(title)
+            .setView(view)
+            .setPositiveButton("确定", null)
+            .setNegativeButton("取消", null)
+            .create()
+
+        fun syncConfirm() {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.isEnabled = picked > 0
+        }
+
+        // 类别筛选 Chip
+        val cats = CardCatalog.cards.map { it.category }.distinct()
+        (listOf(null) + cats).forEachIndexed { i, c ->
+            val chip = Chip(this).apply {
+                text = c ?: "全部类别"
+                isCheckable = true
+                id = View.generateViewId()
+                isChecked = i == 0
+            }
+            chip.setOnCheckedChangeListener { _, checked ->
+                if (checked) {
+                    category = c
+                    picked = -1
+                    recycler.adapter?.notifyDataSetChanged()
+                    syncConfirm()
+                }
+            }
+            chipGroup.addView(chip)
+        }
+
+        fun cardsNow(): List<CardDef> =
+            CardCatalog.cards.filter { category == null || it.category == category }
+
+        recycler.layoutManager = GridLayoutManager(this, 4)
+        recycler.adapter = object : RecyclerView.Adapter<PickVH>() {
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+                PickVH(ItemPickCardBinding.inflate(layoutInflater, parent, false))
+
+            override fun getItemCount(): Int = cardsNow().size
+
+            override fun onBindViewHolder(holder: PickVH, position: Int) {
+                val def = cardsNow()[position]
+                val b = holder.b
+                b.pickCard.mode = CardView.Mode.FACE
+                b.pickCard.rarity = rarity
+                b.pickCard.cardNumber = def.id
+                b.pickCard.locked = false
+
+                val excluded = def.id == excludeId
+                b.root.alpha = if (excluded) 0.3f else 1f
+                b.pickCheck.isVisible = def.id == picked
+                b.root.setOnClickListener {
+                    if (excluded) {
+                        Toast.makeText(this@WorkshopActivity, "不能选择同一张卡", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    picked = def.id
+                    notifyDataSetChanged()
+                    syncConfirm()
+                }
+            }
+        }
+
+        dialog.show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+            if (picked > 0) {
+                dialog.dismiss()
+                onPick(picked)
+            }
+        }
+        syncConfirm()
+    }
+
+    private class PickVH(val b: ItemPickCardBinding) : RecyclerView.ViewHolder(b.root)
 
     // ---------------- 分解 / 合成演出动画 ----------------
 
@@ -563,6 +870,76 @@ class WorkshopActivity : AppCompatActivity() {
 
             // 5) 收场
             overlayOut(2200, onDone)
+        }
+    }
+
+    /**
+     * 转换演出：原卡弹入 → 旋转缩小被吸入 → 目标色闪光 → 新卡弹入登场。
+     */
+    private fun playConvertAnim(
+        from: Pair<Int, Rarity>,
+        to: DropEngine.Drop,
+        onDone: () -> Unit
+    ) {
+        animating = true
+        overlayIn()
+        val overlay = binding.craftOverlay
+
+        val src = makeStageCard(from.first, from.second).apply { alpha = 0f }
+        overlay.addView(src, FrameLayout.LayoutParams(dp(124), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.CENTER
+        })
+
+        val dst = makeStageCard(to.cardId, to.rarity).apply {
+            alpha = 0f
+            scaleX = 0f
+            scaleY = 0f
+        }
+        overlay.addView(dst, FrameLayout.LayoutParams(dp(124), ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            gravity = Gravity.CENTER
+        })
+
+        src.post {
+            if (isFinishing || isDestroyed) return@post
+
+            // 1) 原卡弹入
+            src.scaleX = 0.2f
+            src.scaleY = 0.2f
+            src.animate().scaleX(1f).scaleY(1f).alpha(1f)
+                .setDuration(280)
+                .setInterpolator(OvershootInterpolator(1.35f))
+                .start()
+
+            // 2) 旋转缩小淡出（被吸入转换）
+            at(560) {
+                src.animate()
+                    .scaleX(0.1f).scaleY(0.1f)
+                    .rotation(300f)
+                    .alpha(0f)
+                    .setDuration(380)
+                    .setInterpolator(AccelerateInterpolator())
+                    .start()
+            }
+
+            // 3) 目标色闪光
+            at(890) { spawnBurst(overlay, to.rarity.color) }
+
+            // 4) 新卡登场：猛弹到 1.15 再回弹收稳
+            at(1020) {
+                dst.animate().alpha(1f).scaleX(1.15f).scaleY(1.15f)
+                    .setDuration(300)
+                    .setInterpolator(DecelerateInterpolator())
+                    .withEndAction {
+                        dst.animate().scaleX(1f).scaleY(1f)
+                            .setDuration(180)
+                            .setInterpolator(DecelerateInterpolator())
+                            .start()
+                    }
+                    .start()
+            }
+
+            // 5) 收场
+            overlayOut(1950, onDone)
         }
     }
 
