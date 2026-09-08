@@ -103,29 +103,34 @@ object FocusSessionManager {
         }
     }
 
+    /** 统一碎裂入口：计数 + 历史 + 待告知落盘 + 广播状态 */
+    private fun doCrack(context: Context, s: State.Focusing, reason: String) {
+        val repo = CollectionRepository.get(context)
+        val elapsed = System.currentTimeMillis() - s.startedAt
+        repo.addCrack(reason, s.minutes, elapsed)
+        // 落盘：若进程随后被杀，回来后由主页/专注页兜底告知
+        repo.savePendingCrack(
+            CollectionRepository.PendingCrack(reason, s.minutes, elapsed)
+        )
+        setState(State.Cracked(reason, s.minutes, elapsed))
+    }
+
     /** 用户离开 App（非锁屏、非旋转）→ 卡片碎裂 */
     fun crackByLeaving(context: Context) {
         val s = state as? State.Focusing ?: return
-        val repo = CollectionRepository.get(context)
-        repo.addCrack()
-        val elapsed = System.currentTimeMillis() - s.startedAt
-        // 落盘：若进程随后被杀，回来后由主页/专注页兜底告知
-        repo.savePendingCrack(
-            CollectionRepository.PendingCrack("离开了应用，卡片碎裂了…", s.minutes, elapsed)
-        )
-        setState(State.Cracked("离开了应用，卡片碎裂了…", s.minutes, elapsed))
+        doCrack(context, s, "离开了应用，卡片碎裂了…")
+    }
+
+    /** 悬浮窗 / 分屏 / 画中画遮挡（Activity 暂停但未停止）→ 同样碎裂 */
+    fun crackByOverlay(context: Context) {
+        val s = state as? State.Focusing ?: return
+        doCrack(context, s, "被悬浮窗或分屏遮挡，卡片碎裂了…")
     }
 
     /** 用户主动放弃 → 同样碎裂 */
     fun giveUp(context: Context) {
         val s = state as? State.Focusing ?: return
-        val repo = CollectionRepository.get(context)
-        repo.addCrack()
-        val elapsed = System.currentTimeMillis() - s.startedAt
-        repo.savePendingCrack(
-            CollectionRepository.PendingCrack("放弃了专注，卡片碎裂了…", s.minutes, elapsed)
-        )
-        setState(State.Cracked("放弃了专注，卡片碎裂了…", s.minutes, elapsed))
+        doCrack(context, s, "放弃了专注，卡片碎裂了…")
     }
 
     /** 查看完结果后复位 */

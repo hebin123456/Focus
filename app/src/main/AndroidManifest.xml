@@ -23,6 +23,22 @@
             android:name=".ui.MainActivity"
             android:exported="true" />
 
+        <!-- 桌面接管（实验）：HOME 别名默认禁用，侧边栏「桌面接管」开关启用；
+             启用后 Focus 出现在系统主屏幕应用选择里，选中则按 Home 回到 Focus -->
+        <activity-alias
+            android:name=".icon.home"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:targetActivity=".ui.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.HOME" />
+            </intent-filter>
+        </activity-alias>
+
         <activity
             android:name=".ui.FocusActivity"
             android:exported="false"

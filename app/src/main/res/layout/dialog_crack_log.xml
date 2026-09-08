@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 碎裂记录详情：倒序列表 + 加载更多 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="4dp">
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerCrackLog"
+        android:layout_width="match_parent"
+        android:layout_height="380dp"
+        android:clipToPadding="false"
+        android:overScrollMode="never"
+        android:paddingHorizontal="8dp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnMoreCracks"
+        style="@style/Widget.Material3.Button.TextButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="加载更多"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/textCrackEmpty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="32dp"
+        android:text="暂无碎裂记录\n守住每一张卡吧"
+        android:textColor="@color/textSecondary"
+        android:textSize="14sp"
+        android:visibility="gone" />
+</LinearLayout>

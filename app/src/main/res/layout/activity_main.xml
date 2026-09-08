@@ -160,9 +160,14 @@
                     app:strokeColor="@color/track"
                     app:strokeWidth="1dp">
 
+                    <!-- 可点击：跳转图鉴 -->
                     <LinearLayout
+                        android:id="@+id/statCardCollected"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
                         android:padding="14dp">
@@ -195,9 +200,14 @@
                     app:strokeColor="@color/track"
                     app:strokeWidth="1dp">
 
+                    <!-- 可点击：弹出碎裂记录（倒序分页） -->
                     <LinearLayout
+                        android:id="@+id/statCardCracked"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
                         android:padding="14dp">
@@ -718,6 +728,41 @@
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
                 android:text="外观主题"
+                android:textColor="@color/textPrimary"
+                android:textSize="15sp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="›"
+                android:textColor="@color/textSecondary"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <!-- 桌面接管（实验）：启用 HOME 别名，把 Focus 变成启动器 -->
+        <LinearLayout
+            android:id="@+id/navLauncher"
+            style="@style/DrawerItem"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_home"
+                app:tint="@color/textSecondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="桌面接管（实验）"
                 android:textColor="@color/textPrimary"
                 android:textSize="15sp" />
 

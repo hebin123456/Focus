@@ -1,9 +1,12 @@
 package me.hebin.focus.ui
 
+import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
+import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -19,6 +22,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.imageview.ShapeableImageView
 import kotlinx.coroutines.launch
@@ -36,8 +41,12 @@ import me.hebin.focus.data.DailyLoginManager
 import me.hebin.focus.data.DropEngine
 import me.hebin.focus.data.ShopStore
 import me.hebin.focus.databinding.ActivityMainBinding
+import me.hebin.focus.databinding.ItemCrackLogBinding
 import me.hebin.focus.session.FocusSessionManager
 import me.hebin.focus.ui.view.CardView
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -120,6 +129,14 @@ class MainActivity : AppCompatActivity() {
             binding.drawerLayout.closeDrawer(Gravity.START)
             showThemeDialog()
         }
+        binding.navLauncher.setOnClickListener {
+            binding.drawerLayout.closeDrawer(Gravity.START)
+            showLauncherDialog()
+        }
+        binding.statCardCollected.setOnClickListener {
+            startActivity(Intent(this, CollectionActivity::class.java))
+        }
+        binding.statCardCracked.setOnClickListener { showCrackHistory() }
         binding.coinChip.setOnClickListener { startActivity(Intent(this, ShopActivity::class.java)) }
         binding.navReward.setOnClickListener {
             binding.drawerLayout.closeDrawer(Gravity.START)
@@ -436,7 +453,7 @@ class MainActivity : AppCompatActivity() {
             · 卡片工坊：分解随机得 3 张低级卡，3 张合成 1 张高级卡（结果随机）
             · 金币与道具商店：App 前台挂机攒金币，道具敬请期待
             · 白噪音：雨声 / 海浪 / 炉火 / 白噪程序化合成，专注时可选可调音量
-            · 深度专注：全屏沉浸隐藏放弃按钮，完成金币翻倍
+            · 深度专注：全屏沉浸 + 屏幕固定，完成金币翻倍
             · 自定义图标：用收集到的萌宠当桌面图标，样式跟随稀有度
             · 每日登录送卡，连续越久卡越好（联网校验时间）
             · 成就点数解锁青铜/白银/黄金/钻石勋章，可佩戴展示
@@ -444,10 +461,121 @@ class MainActivity : AppCompatActivity() {
 
             开源仓库：github.com/hebin123456/Focus
         """.trimIndent()
-        AlertDialog.Builder(this)
+        val dialog = AlertDialog.Builder(this)
             .setTitle("关于 Focus")
             .setMessage(msg)
             .setPositiveButton("好的") { d, _ -> d.dismiss() }
+            .show()
+
+        // 隐藏调试：连点 5 下清空收集，连点 10 下全收集全成就。
+        // 由 gradle.properties 的 focusDebugTools 控制，发布时关闭即可随编译剔除。
+        if (!BuildConfig.DEBUG_TOOLS) return
+        var taps = 0
+        var lastTap = 0L
+        val tapListener = View.OnClickListener {
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (now - lastTap > 800) taps = 0
+            lastTap = now
+            taps++
+            if (taps == 5) {
+                CollectionRepository.get(this).debugWipe()
+                refreshStats(); refreshShowcase(); refreshDrawerHeader()
+                Toast.makeText(this, "调试：已清空全部收集与进度", Toast.LENGTH_SHORT).show()
+            } else if (taps == 10) {
+                CollectionRepository.get(this).debugUnlockAll()
+                refreshStats(); refreshShowcase(); refreshDrawerHeader()
+                Toast.makeText(this, "调试：已解锁全图鉴与全成就", Toast.LENGTH_SHORT).show()
+            }
+        }
+        // 标题和正文都可点
+        listOfNotNull(
+            dialog.findViewById<View>(android.R.id.title),
+            dialog.findViewById<View>(android.R.id.message)
+        ).forEach { it.setOnClickListener(tapListener) }
+    }
+
+    // ---------------- 碎裂记录 ----------------
+
+    /** 碎裂记录弹窗：按时间倒序、每页 20 条、点「加载更多」翻页 */
+    private fun showCrackHistory() {
+        val repo = CollectionRepository.get(this)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_crack_log, null)
+        val recycler = view.findViewById<RecyclerView>(R.id.recyclerCrackLog)
+        val btnMore = view.findViewById<View>(R.id.btnMoreCracks)
+        val textEmpty = view.findViewById<View>(R.id.textCrackEmpty)
+
+        val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+        val logs = mutableListOf<CollectionRepository.CrackLog>()
+        val adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+            override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = object : RecyclerView.ViewHolder(
+                ItemCrackLogBinding.inflate(LayoutInflater.from(parent.context), parent, false).root
+            ) {}
+
+            override fun getItemCount() = logs.size
+
+            override fun onBindViewHolder(holder: RecyclerView.ViewHolder, pos: Int) {
+                val b = ItemCrackLogBinding.bind(holder.itemView)
+                val l = logs[pos]
+                b.crackReason.text = l.reason
+                b.crackTime.text = if (l.ts > 0) fmt.format(Date(l.ts)) else ""
+                b.crackStat.text = l.statLine()
+            }
+        }
+        recycler.layoutManager = LinearLayoutManager(this)
+        recycler.adapter = adapter
+
+        fun loadMore() {
+            val page = repo.crackLogs(20, logs.size)
+            logs.addAll(page)
+            adapter.notifyDataSetChanged()
+            btnMore.isVisible = page.size == 20 // 还有下一页
+        }
+        loadMore()
+        textEmpty.isVisible = logs.isEmpty()
+        btnMore.setOnClickListener { loadMore() }
+
+        AlertDialog.Builder(this)
+            .setTitle("碎裂记录（共 ${repo.crackedCount} 次）")
+            .setView(view)
+            .setPositiveButton("关闭") { d, _ -> d.dismiss() }
+            .show()
+    }
+
+    // ---------------- 桌面接管（实验） ----------------
+
+    /** HOME 别名：启用后 Focus 成为候选启动器，按 Home 回到 Focus 而非桌面 */
+    private val homeComponent = ComponentName(this, "me.hebin.focus.icon.home")
+
+    private fun showLauncherDialog() {
+        val pm = packageManager
+        val enabled = pm.getComponentEnabledSetting(homeComponent) ==
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
+        AlertDialog.Builder(this)
+            .setTitle("桌面接管（实验）")
+            .setMessage(
+                if (enabled) "已开启：Focus 正作为桌面启动器运行。\n\n关闭后恢复系统默认桌面，随时可再开。"
+                else "开启后 Focus 会出现在系统「默认应用 → 主屏幕应用」里，选择它之后按 Home 键将回到 Focus，配合深度专注更难分心。\n\n可随时回到这里关闭，恢复原桌面。"
+            )
+            .setPositiveButton(if (enabled) "关闭接管" else "去开启") { d, _ ->
+                d.dismiss()
+                if (enabled) {
+                    pm.setComponentEnabledSetting(
+                        homeComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                    Toast.makeText(this, "已恢复系统桌面", Toast.LENGTH_SHORT).show()
+                } else {
+                    pm.setComponentEnabledSetting(
+                        homeComponent,
+                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                        PackageManager.DONT_KILL_APP
+                    )
+                    runCatching { startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }
+                    Toast.makeText(this, "在系统中选择 Focus 作为主屏幕应用", Toast.LENGTH_LONG).show()
+                }
+            }
+            .setNegativeButton("取消") { d, _ -> d.dismiss() }
             .show()
     }
 

@@ -88,6 +88,11 @@ class ShopStore private constructor(context: Context) {
         JSONObject(prefs.getString(KEY_INVENTORY, "{}"))
     }.getOrDefault(JSONObject())
 
+    /** 调试用：金币与背包全部清零（关于弹窗连点触发） */
+    fun wipeDebug() {
+        prefs.edit().clear().apply()
+    }
+
     private fun liveMs(): Long = FocusApp.instance?.liveForegroundMs() ?: 0L
 
     companion object {

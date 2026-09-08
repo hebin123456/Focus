@@ -83,6 +83,25 @@ class FocusActivity : AppCompatActivity() {
     /** 当前播放的声景，null = 关闭 */
     private var curSound: AmbientSound? = null
 
+    /** 深度专注请求屏幕固定（Screen Pinning）的时间戳：确认框期间跳过离开判定，防误伤 */
+    private var lockTaskRequestAt = 0L
+
+    /** 浮窗/分屏遮挡检查：onPause 后延迟触发（onResume 会取消） */
+    private val overlayCheck = Runnable {
+        if (isFinishing || isChangingConfigurations) return@Runnable
+        if (FocusSessionManager.state !is State.Focusing) return@Runnable
+        if (FocusSessionManager.isScreenOffRecent()) return@Runnable // 锁屏不算
+        // 屏幕固定确认框期间（系统窗口持有焦点）不判离开
+        if (deep && lockTaskRequestAt > 0 && System.currentTimeMillis() - lockTaskRequestAt < 20_000) return@Runnable
+        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+            // 暂停但未停止：被悬浮窗 / 分屏 / 画中画遮挡
+            FocusSessionManager.crackByOverlay(this)
+        } else {
+            // 已停止：切走 App（onStop 兜底逻辑会因状态已变而跳过）
+            FocusSessionManager.crackByLeaving(this)
+        }
+    }
+
     /** 碎裂发生在后台（切走瞬间）或进程被杀后恢复时，回到前台补播动画 */
     private var replayCrack: State.Cracked? = null
 
@@ -131,6 +150,11 @@ class FocusActivity : AppCompatActivity() {
         }
         binding.btnGiveUp.setOnClickListener { confirmGiveUp() }
         setupNoisePanel()
+        // 深度专注：请求屏幕固定（Screen Pinning），Home/多任务/返回全部失效，长按返回才可退出
+        if (deep && restoredCrack == null) {
+            lockTaskRequestAt = System.currentTimeMillis()
+            binding.root.post { runCatching { startLockTask() } }
+        }
         // 自动续播上次选的声景；深度专注默认雨声（用户明确关过则尊重选择）
         if (restoredCrack == null && FocusSessionManager.state is State.Focusing) {
             val init = AmbientPrefs.sound(this, if (deep) AmbientSound.RAIN else AmbientSound.OFF)
@@ -146,12 +170,21 @@ class FocusActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        binding.root.removeCallbacks(overlayCheck)
         // 后台碎裂 / 进程被杀恢复的动画在这里补播，让用户看清楚发生了什么
         val pc = replayCrack
         if (pc != null) {
             replayCrack = null
             // 首次恢复时视图尚未完成布局，post 到布局后再播
             binding.root.post { if (!isFinishing) playCrack(pc) }
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 切走 / 被浮窗覆盖都会先 onPause；延迟片刻再判定，短暂闪扰（下拉通知、音量条）不会误伤
+        if (!isFinishing && !isChangingConfigurations) {
+            binding.root.postDelayed(overlayCheck, 900)
         }
     }
 
@@ -166,6 +199,7 @@ class FocusActivity : AppCompatActivity() {
     override fun onDestroy() {
         FocusSessionManager.removeListener(stateListener)
         AmbientPlayer.stop()
+        releaseLockTask()
         super.onDestroy()
     }
 
@@ -204,10 +238,12 @@ class FocusActivity : AppCompatActivity() {
             is State.Idle -> showFocusingPlaceholder()
             is State.Focusing -> showFocusing(state)
             is State.Success -> {
+                releaseLockTask() // 结果已出，解除屏幕固定让用户正常操作
                 if (!resultShown) { resultShown = true; playReveal(state.drop) }
                 else showSuccessStatic(state.drop)
             }
             is State.Cracked -> {
+                releaseLockTask()
                 if (!resultShown) {
                     resultShown = true
                     if (lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
@@ -578,6 +614,19 @@ class FocusActivity : AppCompatActivity() {
         controller.systemBarsBehavior =
             WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         controller.hide(WindowInsetsCompat.Type.systemBars())
+    }
+
+    /** 解除屏幕固定（不在固定模式时安全跳过） */
+    private fun releaseLockTask() {
+        runCatching {
+            val am = getSystemService(ACTIVITY_SERVICE) as android.app.ActivityManager
+            val inLock = if (android.os.Build.VERSION.SDK_INT >= 29) {
+                am.lockTaskModeState != android.app.ActivityManager.LOCK_TASK_MODE_NONE
+            } else {
+                @Suppress("DEPRECATION") am.isInLockTaskMode
+            }
+            if (inLock) stopLockTask()
+        }
     }
 
     private fun setupNoisePanel() {

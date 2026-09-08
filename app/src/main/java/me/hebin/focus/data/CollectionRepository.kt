@@ -17,8 +17,8 @@ import org.json.JSONObject
  */
 class CollectionRepository private constructor(context: Context) {
 
-    private val prefs = context.applicationContext
-        .getSharedPreferences("focus_cards", Context.MODE_PRIVATE)
+    private val appCtx = context.applicationContext
+    private val prefs = appCtx.getSharedPreferences("focus_cards", Context.MODE_PRIVATE)
 
     /** 图鉴内存缓存：编号 -> (稀有度 -> 数量)。addCard 时失效重建。 */
     private var cardsCache: HashMap<Int, HashMap<Rarity, Int>>? = null
@@ -155,8 +155,92 @@ class CollectionRepository private constructor(context: Context) {
 
     fun addFocusMinutes(m: Int) { totalFocusMinutes += m }
     fun addFinishedSession() { finishedSessions += 1 }
-    fun addCrack() { crackedCount += 1 }
+
+    // ---------- 碎裂历史（详情弹窗用，倒序分页读取） ----------
+
+    /** 一条碎裂记录 */
+    data class CrackLog(
+        val ts: Long,
+        val reason: String,
+        val minutes: Int,
+        val elapsedMs: Long
+    ) {
+        /** "坚持了 X 分 Y 秒（完成 Z%）"；minutes<=0 时返回空串 */
+        fun statLine(): String = crackStatLine(minutes, elapsedMs)
+    }
+
+    fun addCrack(reason: String, minutes: Int, elapsedMs: Long) {
+        crackedCount += 1
+        val arr = runCatching { JSONArray(prefs.getString(KEY_CRACK_HISTORY, "[]")) }
+            .getOrDefault(JSONArray())
+        arr.put(
+            JSONObject()
+                .put("ts", System.currentTimeMillis())
+                .put("reason", reason)
+                .put("minutes", minutes)
+                .put("elapsedMs", elapsedMs)
+        )
+        // 上限 500 条，超出丢弃最旧的
+        while (arr.length() > 500) arr.remove(0)
+        prefs.edit().putString(KEY_CRACK_HISTORY, arr.toString()).apply()
+    }
+
+    /** 分页读取碎裂历史（最新在前）；offset 从 0 起 */
+    fun crackLogs(limit: Int, offset: Int): List<CrackLog> {
+        val s = prefs.getString(KEY_CRACK_HISTORY, null) ?: return emptyList()
+        return runCatching {
+            val a = JSONArray(s)
+            val total = a.length()
+            (offset until minOf(offset + limit, total)).mapNotNull { i ->
+                // 数组按时间正序存，倒序展示：从尾部往前取
+                val o = a.optJSONObject(total - 1 - i) ?: return@mapNotNull null
+                CrackLog(
+                    o.optLong("ts", 0L),
+                    o.optString("reason", ""),
+                    o.optInt("minutes", 0),
+                    o.optLong("elapsedMs", 0L)
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
     fun addDeepSession() { deepSessions += 1 }
+
+    // ---------- 调试功能（关于弹窗连点触发，BuildConfig.DEBUG_TOOLS 使能） ----------
+
+    /** 清空全部进度：图鉴 / 历史 / 统计 / 成就 / 徽章 / 金币背包（昵称头像保留） */
+    fun debugWipe() {
+        cardsCache = null
+        prefs.edit()
+            .remove(KEY_CARDS)
+            .remove(KEY_RECENT)
+            .remove(KEY_CRACK_HISTORY)
+            .remove(KEY_MINUTES)
+            .remove(KEY_SESSIONS)
+            .remove(KEY_CRACKED)
+            .remove(KEY_DEEP_SESSIONS)
+            .remove(KEY_ACHIEVEMENTS)
+            .remove(KEY_EQUIPPED_BADGE)
+            .remove(KEY_PENDING)
+            .remove(KEY_PENDING_CRACK)
+            .apply()
+        ShopStore.get(appCtx).wipeDebug()
+    }
+
+    /** 全收集（101 × 5 稀有度各 1 张）+ 全成就解锁 */
+    fun debugUnlockAll() {
+        val root = JSONObject()
+        for (id in 1..CardCatalog.TOTAL) {
+            val o = JSONObject()
+            for (r in Rarity.entries) o.put(r.ordinal.toString(), 1)
+            root.put(id.toString(), o)
+        }
+        cardsCache = null
+        prefs.edit().putString(KEY_CARDS, root.toString()).apply()
+        prefs.edit()
+            .putStringSet(KEY_ACHIEVEMENTS, Achievements.defs.map { it.id }.toSet())
+            .apply()
+    }
 
     // ---------- 每日登录（联网校验时间） ----------
 
@@ -260,6 +344,7 @@ class CollectionRepository private constructor(context: Context) {
         private const val KEY_MINUTES = "totalMinutes"
         private const val KEY_SESSIONS = "sessions"
         private const val KEY_CRACKED = "cracked"
+        private const val KEY_CRACK_HISTORY = "crackHistory"
         private const val KEY_DEEP_SESSIONS = "deepSessions"
         private const val KEY_PENDING = "pendingDrop"
         private const val KEY_PENDING_CRACK = "pendingCrack"

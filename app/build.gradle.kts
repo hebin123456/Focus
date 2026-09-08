@@ -3,6 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
+// 隐藏调试功能（关于弹窗连点清档/全解锁）：由 gradle.properties 的 focusDebugTools 控制，
+// 发布时置 false 重新编译即随 BuildConfig.DEBUG_TOOLS 关闭。
+val focusDebugTools = (findProperty("focusDebugTools") as? String)?.toBooleanStrictOrNull() ?: false
+
 android {
     namespace = "me.hebin.focus"
     compileSdk = 34
@@ -11,8 +15,9 @@ android {
         applicationId = "me.hebin.focus"
         minSdk = 24
         targetSdk = 34
-        versionCode = 10
-        versionName = "0.7.0"
+        versionCode = 11
+        versionName = "0.8.0"
+        buildConfigField("boolean", "DEBUG_TOOLS", focusDebugTools.toString())
     }
 
     buildTypes {
