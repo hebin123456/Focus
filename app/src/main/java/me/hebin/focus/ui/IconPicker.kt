@@ -31,8 +31,9 @@ object IconPicker {
         }
 
         val repo = CollectionRepository.get(activity)
-        val owned = (1..CardCatalog.TOTAL)
-            .mapNotNull { id -> repo.bestRarity(id)?.let { id to it } }
+        // 展开所有已收集的（编号, 稀有度）组合，按稀有度升序、编号升序；
+        // 这样集齐后依然能选普卡/铜卡等低稀有度版本，不止最高级
+        val owned = repo.ownedSlots()
 
         val sheet = BottomSheetDialog(activity)
         val pad = dp(activity, 20)
@@ -108,7 +109,7 @@ object IconPicker {
     }
 
     private class PickerAdapter(
-        private val cards: List<Pair<Int, Rarity>>,
+        private val cards: List<Triple<Int, Rarity, Int>>,
         private val onPick: (Int, Rarity) -> Unit
     ) : RecyclerView.Adapter<PickerAdapter.VH>() {
 
@@ -125,7 +126,7 @@ object IconPicker {
         override fun getItemCount(): Int = cards.size
 
         override fun onBindViewHolder(holder: VH, position: Int) {
-            val (id, rarity) = cards[position]
+            val (id, rarity, _) = cards[position]
             holder.card.mode = CardView.Mode.FACE
             holder.card.rarity = rarity
             holder.card.cardNumber = id

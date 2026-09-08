@@ -486,7 +486,7 @@ class MainActivity : AppCompatActivity() {
                 CollectionRepository.get(this).debugUnlockAll()
                 refreshStats(); refreshShowcase(); refreshDrawerHeader()
                 binding.textCoins.text = ShopStore.get(this).currentCoins().toString()
-                Toast.makeText(this, "调试：已解锁全图鉴与全成就，金币 99999", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "调试：已解锁全图鉴与全成就，金币 99999，累计专注 6000 分钟", Toast.LENGTH_SHORT).show()
             }
         }
         // 标题和正文都可点
