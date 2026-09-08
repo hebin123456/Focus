@@ -10,4 +10,26 @@
         <item name="android:statusBarColor">@color/background</item>
         <item name="android:navigationBarColor">@color/background</item>
     </style>
+
+    <!-- 圆形头像裁剪 -->
+    <style name="CircleImage">
+        <item name="shapeAppearanceOverlay">@style/CircleImage.Overlay</item>
+    </style>
+    <style name="CircleImage.Overlay">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <!-- 侧边栏菜单行 -->
+    <style name="DrawerItem">
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:paddingLeft">20dp</item>
+        <item name="android:paddingRight">20dp</item>
+        <item name="android:paddingTop">15dp</item>
+        <item name="android:paddingBottom">15dp</item>
+    </style>
 </resources>

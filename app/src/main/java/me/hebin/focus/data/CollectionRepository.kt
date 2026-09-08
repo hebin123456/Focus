@@ -100,6 +100,11 @@ class CollectionRepository private constructor(context: Context) {
 
     // ---------- 每日登录（联网校验时间） ----------
 
+    /** 用户昵称（本地资料） */
+    var nickname: String
+        get() = prefs.getString(KEY_NICKNAME, "专注者") ?: "专注者"
+        set(v) = prefs.edit().putString(KEY_NICKNAME, v.trim().ifEmpty { "专注者" }).apply()
+
     /** 最近一次领奖的本地时区天序号，-1 = 从未领过 */
     var lastClaimDay: Long
         get() = prefs.getLong(KEY_LAST_CLAIM_DAY, -1L)
@@ -163,6 +168,7 @@ class CollectionRepository private constructor(context: Context) {
         private const val KEY_SESSIONS = "sessions"
         private const val KEY_CRACKED = "cracked"
         private const val KEY_PENDING = "pendingDrop"
+        private const val KEY_NICKNAME = "nickname"
         private const val KEY_LAST_CLAIM_DAY = "lastClaimDay"
         private const val KEY_LOGIN_STREAK = "loginStreak"
         private const val KEY_LAST_NET_TIME = "lastNetworkTime"

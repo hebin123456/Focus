@@ -15,6 +15,7 @@
 | 每日登录 | 每天首次打开送随机卡；联网校验时间防改本地时间；连续登录越久卡越好（第 1 天≈10 分钟档，第 23 天起封顶 120 分钟档） |
 | 成就系统 | 20 个成就 × 点数（总计 525 点）：连续登录天数、集齐普/铜/银/金/钻各 100 张、专注时长/次数、首次金卡/钻石卡 |
 | 徽章系统 | 点数达 30/80/150/250 解锁青铜/白银/黄金/钻石徽章，可佩戴展示在主页标题旁 |
+| 侧边栏 | 头像 + 昵称 + 佩戴勋章的抽屉导航；本地头像（相册选图 / 6 色预置生成）；个人资料、成就与勋章、图鉴、兑换、关于 |
 | 奖励兑换 | 预留 `RewardApi` 接口，集齐 100 张可兑换奖品（当前为本地 Stub 实现） |
 
 ### 每日登录防作弊设计
@@ -41,11 +42,12 @@ app/src/main/java/me/hebin/focus/
 │   ├── CollectionRepository.kt# 图鉴/统计/每日登录/成就持久化
 │   ├── DailyLoginManager.kt   # 每日登录：联网时间校验 + streak + 发卡
 │   ├── Achievements.kt        # 成就定义 / 点数 / 徽章 / 解锁检查
+│   ├── AvatarStore.kt         # 本地头像：相册选图(SAF) / 预置色板生成 / 渲染
 │   └── RewardApi.kt           # 奖励兑换接口 + Stub 实现
 ├── session/
 │   └── FocusSessionManager.kt # 专注会话状态机（进程级单例）
 └── ui/
-    ├── MainActivity.kt        # 主页：时长选择 + 统计 + 徽章展示 + 每日领卡
+    ├── MainActivity.kt        # 主页：抽屉导航 + 头像/昵称 + 统计 + 每日领卡 + 关于
     ├── FocusActivity.kt       # 专注页：计时/剪影/碎裂/翻卡
     ├── CollectionActivity.kt  # 图鉴页
     ├── CardGridAdapter.kt     # 图鉴网格适配器
