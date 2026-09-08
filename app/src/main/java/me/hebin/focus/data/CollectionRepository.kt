@@ -227,7 +227,7 @@ class CollectionRepository private constructor(context: Context) {
         ShopStore.get(appCtx).wipeDebug()
     }
 
-    /** 全收集（101 × 5 稀有度各 2 张，留一张可测试工坊）+ 全成就解锁 + 金币 99999 + 累计专注 6000 分钟 + 填充最近收集展示条 */
+    /** 全收集（101 × 5 稀有度各 2 张，留一张可测试工坊）+ 全成就解锁 + 金币 99999 + 累计专注 6000 分钟 + 碎裂 0 次 + 填充最近收集展示条 */
     fun debugUnlockAll() {
         val root = JSONObject()
         for (id in 1..CardCatalog.TOTAL) {
@@ -252,7 +252,7 @@ class CollectionRepository private constructor(context: Context) {
             .putInt(KEY_MINUTES, 6000)
             .putInt(KEY_SESSIONS, 120)
             .putInt(KEY_DEEP_SESSIONS, 20)
-            .putInt(KEY_CRACKED, 33)
+            .putInt(KEY_CRACKED, 0)
             .apply()
         ShopStore.get(appCtx).debugSetCoins(99_999)
     }

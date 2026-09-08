@@ -19,6 +19,7 @@ class CardGridAdapter(
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val card: CardView = v.findViewById(R.id.gridCard)
+        val badgeCount: android.widget.TextView = v.findViewById(R.id.badgeCount)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -38,6 +39,12 @@ class CardGridAdapter(
         holder.card.cardNumber = id
         holder.card.locked = best == null
         holder.card.rarity = best ?: CardCatalog.baseTierOf(id)
+
+        // 持有数量角标：所有稀有度合计，≥2 才显示（1 张是常态，不刷屏）
+        val total = counts.values.sum()
+        holder.badgeCount.isVisible = total >= 2
+        holder.badgeCount.text = "×$total"
+
         holder.card.setOnClickListener {
             showDetail(ctx, id, counts)
         }

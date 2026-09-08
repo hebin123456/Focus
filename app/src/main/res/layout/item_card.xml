@@ -10,4 +10,19 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 
+    <!-- 持有数量角标（所有稀有度合计，未收集不显示） -->
+    <TextView
+        android:id="@+id/badgeCount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="6dp"
+        android:background="@drawable/bg_badge_dark"
+        android:paddingHorizontal="6dp"
+        android:paddingVertical="2dp"
+        android:text="×2"
+        android:textColor="@color/textSecondary"
+        android:textSize="10sp"
+        android:visibility="gone" />
+
 </FrameLayout>
