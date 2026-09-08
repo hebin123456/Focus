@@ -12,7 +12,7 @@ import me.hebin.focus.data.CollectionRepository
 import me.hebin.focus.data.Rarity
 import me.hebin.focus.ui.view.CardView
 
-/** 图鉴网格：100 个格子，未收集显示灰剪影 */
+/** 图鉴网格：默认全部 101 卡，未收集显示灰剪影；支持按编号列表筛选展示 */
 class CardGridAdapter(
     private val repo: CollectionRepository
 ) : RecyclerView.Adapter<CardGridAdapter.VH>() {
@@ -22,15 +22,24 @@ class CardGridAdapter(
         val badgeCount: android.widget.TextView = v.findViewById(R.id.badgeCount)
     }
 
+    /** 当前展示的编号（默认 1..101，筛选后变化） */
+    private var ids: List<Int> = (1..CardCatalog.TOTAL).toList()
+
+    /** 更新筛选结果 */
+    fun submit(newIds: List<Int>) {
+        ids = newIds
+        notifyDataSetChanged()
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
         val v = LayoutInflater.from(parent.context).inflate(R.layout.item_card, parent, false)
         return VH(v)
     }
 
-    override fun getItemCount(): Int = CardCatalog.TOTAL
+    override fun getItemCount(): Int = ids.size
 
     override fun onBindViewHolder(holder: VH, position: Int) {
-        val id = position + 1
+        val id = ids[position]
         val counts = repo.ownedCounts(id)
         val best = counts.keys.maxByOrNull { it.ordinal }
         val ctx = holder.itemView.context
