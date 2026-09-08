@@ -92,16 +92,7 @@ object IconPicker {
             var curCategory: String? = null
 
             val adapter = PickerAdapter { id, rarity ->
-                if (IconSwitcher.applyCard(activity, id, rarity)) {
-                    Toast.makeText(
-                        activity,
-                        "图标已更换！回到桌面看看效果（部分桌面需要几秒刷新）",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    sheet.dismiss()
-                } else {
-                    Toast.makeText(activity, "图标切换失败，请重试", Toast.LENGTH_SHORT).show()
-                }
+                showConfirm(activity, sheet, id, rarity)
             }
 
             val emptyFilter = TextView(activity).apply {
@@ -164,6 +155,73 @@ object IconPicker {
 
         sheet.setContentView(root)
         sheet.show()
+    }
+
+    /** 二次确认弹窗：大卡预览 + 左右滑动切换稀有度（只在已收集的稀有度间循环） */
+    private fun showConfirm(activity: Activity, sheet: BottomSheetDialog, id: Int, start: Rarity) {
+        val repo = CollectionRepository.get(activity)
+        // 该卡已收集的所有稀有度（升序），滑动只能在这些之间切换
+        val owned = repo.ownedCounts(id).keys.sortedBy { it.ordinal }
+        if (owned.isEmpty()) return
+        var idx = owned.indexOf(start).coerceAtLeast(0)
+
+        val view = android.view.LayoutInflater.from(activity)
+            .inflate(R.layout.dialog_icon_confirm, null)
+        val card = view.findViewById<CardView>(R.id.confirmCard)
+        val textRarity = view.findViewById<TextView>(R.id.confirmRarity)
+        val hint = view.findViewById<TextView>(R.id.confirmSwipeHint)
+        card.mode = CardView.Mode.FACE
+        card.cardNumber = id
+        card.locked = false
+        if (owned.size < 2) hint.visibility = View.GONE
+
+        fun renderCur() {
+            val r = owned[idx]
+            card.rarity = r
+            val count = repo.ownedCounts(id)[r] ?: 0
+            textRarity.text = "${r.label} × $count"
+            textRarity.setTextColor(r.color)
+        }
+        renderCur()
+
+        var downX = 0f
+        val slop = 40 * activity.resources.displayMetrics.density
+        card.setOnTouchListener { v, e ->
+            when (e.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> { downX = e.x; true }
+                android.view.MotionEvent.ACTION_UP -> {
+                    val dx = e.x - downX
+                    if (owned.size > 1 && kotlin.math.abs(dx) > slop) {
+                        idx = if (dx < 0) (idx + 1) % owned.size
+                        else (idx - 1 + owned.size) % owned.size
+                        renderCur()
+                    }
+                    v.performClick()
+                    true
+                }
+                else -> false
+            }
+        }
+
+        androidx.appcompat.app.AlertDialog.Builder(activity)
+            .setTitle("用这张卡当图标？")
+            .setView(view)
+            .setPositiveButton("设为图标") { d, _ ->
+                d.dismiss()
+                val r = owned[idx]
+                if (IconSwitcher.applyCard(activity, id, r)) {
+                    Toast.makeText(
+                        activity,
+                        "图标已更换！回到桌面看看效果（部分桌面需要几秒刷新）",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    sheet.dismiss()
+                } else {
+                    Toast.makeText(activity, "图标切换失败，请重试", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("取消") { d, _ -> d.dismiss() }
+            .show()
     }
 
     /** 水平滚动的筛选 Chip 行；values[0] 必须是 null（表示「全部」） */

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 换图标二次确认：大卡预览（左右滑动换稀有度）+ 当前稀有度 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <me.hebin.focus.ui.view.CardView
+        android:id="@+id/confirmCard"
+        android:layout_width="200dp"
+        android:layout_height="283dp" />
+
+    <TextView
+        android:id="@+id/confirmRarity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:textColor="@color/textPrimary"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/confirmSwipeHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:text="‹ 左右滑动切换稀有度 ›"
+        android:textColor="@color/textSecondary"
+        android:textSize="11sp" />
+</LinearLayout>

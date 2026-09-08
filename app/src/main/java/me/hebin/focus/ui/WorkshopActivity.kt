@@ -83,14 +83,23 @@ class WorkshopActivity : AppCompatActivity() {
             Mode.SYNTHESIZE -> "还没有卡片\n先去专注集卡吧"
         }
         binding.textCraftHint.text = when (mode) {
-            Mode.DECOMPOSE -> "选择 1 张卡片分解，随机获得 3 张低一级稀有度的卡片（普卡不可分解）"
-            Mode.SYNTHESIZE -> "选 3 张同稀有度卡片（可不同编号，重复点同张卡可叠加）合成 1 张更高稀有度的卡片；3 张钻石合成随机钻石卡"
+            Mode.DECOMPOSE -> "选择 1 张卡片分解，随机获得 3 张低一级稀有度的卡片（普卡不可分解；只剩 1 张的卡会被保护，不可用）"
+            Mode.SYNTHESIZE -> "选 3 张同稀有度卡片（可不同编号，重复点同张卡可叠加）合成 1 张更高稀有度的卡片；3 张钻石合成随机钻石卡；只剩 1 张的卡会被保护，不可用"
         }
         refreshBottomBar()
     }
 
     private fun onSlotTap(position: Int) {
         val (id, rarity, owned) = slots[position]
+        // 保护最后一张：仅剩 1 张的卡不允许分解 / 合成（避免把收藏搞没）
+        if (owned <= 1) {
+            Toast.makeText(
+                this,
+                "${CardCatalog.displayName(id)} · ${rarity.label} 只剩 1 张，已保护，不能分解或合成",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
         when (mode) {
             Mode.DECOMPOSE -> {
                 selected.clear()

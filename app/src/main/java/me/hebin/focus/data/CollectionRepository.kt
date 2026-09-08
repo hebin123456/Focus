@@ -227,12 +227,12 @@ class CollectionRepository private constructor(context: Context) {
         ShopStore.get(appCtx).wipeDebug()
     }
 
-    /** 全收集（101 × 5 稀有度各 1 张）+ 全成就解锁 + 金币 99999 + 累计专注 6000 分钟 + 填充最近收集展示条 */
+    /** 全收集（101 × 5 稀有度各 2 张，留一张可测试工坊）+ 全成就解锁 + 金币 99999 + 累计专注 6000 分钟 + 填充最近收集展示条 */
     fun debugUnlockAll() {
         val root = JSONObject()
         for (id in 1..CardCatalog.TOTAL) {
             val o = JSONObject()
-            for (r in Rarity.entries) o.put(r.ordinal.toString(), 1)
+            for (r in Rarity.entries) o.put(r.ordinal.toString(), 2)
             root.put(id.toString(), o)
         }
         // 最近收集：取前 12 张不同编号的卡，稀有度递增分布，保证主页展示条有内容

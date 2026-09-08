@@ -1,12 +1,9 @@
 package me.hebin.focus.ui
 
-import android.content.ComponentName
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.res.ColorStateList
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.provider.Settings
 import android.text.InputType
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -128,10 +125,6 @@ class MainActivity : AppCompatActivity() {
         binding.navTheme.setOnClickListener {
             binding.drawerLayout.closeDrawer(Gravity.START)
             showThemeDialog()
-        }
-        binding.navLauncher.setOnClickListener {
-            binding.drawerLayout.closeDrawer(Gravity.START)
-            showLauncherDialog()
         }
         binding.statCardCollected.setOnClickListener {
             startActivity(Intent(this, CollectionActivity::class.java))
@@ -540,45 +533,6 @@ class MainActivity : AppCompatActivity() {
             .setTitle("碎裂记录（共 ${repo.crackedCount} 次）")
             .setView(view)
             .setPositiveButton("关闭") { d, _ -> d.dismiss() }
-            .show()
-    }
-
-    // ---------------- 桌面接管（实验） ----------------
-
-    /** HOME 别名：启用后 Focus 成为候选启动器，按 Home 回到 Focus 而非桌面。
-     *  必须 lazy：属性初始化期 Context 尚未 attach，提前构造会 NPE 闪退 */
-    private val homeComponent by lazy { ComponentName(this, "me.hebin.focus.icon.home") }
-
-    private fun showLauncherDialog() {
-        val pm = packageManager
-        val enabled = pm.getComponentEnabledSetting(homeComponent) ==
-            PackageManager.COMPONENT_ENABLED_STATE_ENABLED
-        AlertDialog.Builder(this)
-            .setTitle("桌面接管（实验）")
-            .setMessage(
-                if (enabled) "已开启：Focus 正作为桌面启动器运行。\n\n关闭后恢复系统默认桌面，随时可再开。"
-                else "开启后 Focus 会出现在系统「默认应用 → 主屏幕应用」里，选择它之后按 Home 键将回到 Focus，配合深度专注更难分心。\n\n可随时回到这里关闭，恢复原桌面。"
-            )
-            .setPositiveButton(if (enabled) "关闭接管" else "去开启") { d, _ ->
-                d.dismiss()
-                if (enabled) {
-                    pm.setComponentEnabledSetting(
-                        homeComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-                        PackageManager.DONT_KILL_APP
-                    )
-                    Toast.makeText(this, "已恢复系统桌面", Toast.LENGTH_SHORT).show()
-                } else {
-                    pm.setComponentEnabledSetting(
-                        homeComponent,
-                        PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-                        PackageManager.DONT_KILL_APP
-                    )
-                    runCatching { startActivity(Intent(Settings.ACTION_HOME_SETTINGS)) }
-                    Toast.makeText(this, "在系统中选择 Focus 作为主屏幕应用", Toast.LENGTH_LONG).show()
-                }
-            }
-            .setNegativeButton("取消") { d, _ -> d.dismiss() }
             .show()
     }
 
