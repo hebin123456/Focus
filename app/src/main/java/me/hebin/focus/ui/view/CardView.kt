@@ -17,6 +17,8 @@ import android.graphics.Typeface
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.LinearInterpolator
+import androidx.core.content.ContextCompat
+import me.hebin.focus.R
 import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.Rarity
 
@@ -157,15 +159,16 @@ class CardView @JvmOverloads constructor(
         val r = radius
 
         if (locked) {
-            // 未收集：深底 + 虚线框 + 动物暗剪影 + 编号
+            // 未收集：卡面 + 虚线框 + 动物暗剪影 + 编号（卡面颜色随主题切换，剪影保持深色）
             bgPaint.shader = LinearGradient(
                 0f, 0f, 0f, h,
-                Color.parseColor("#141826"), Color.parseColor("#0D101A"),
+                ContextCompat.getColor(context, R.color.cardLockedBgTop),
+                ContextCompat.getColor(context, R.color.cardLockedBgBottom),
                 Shader.TileMode.CLAMP
             )
             canvas.drawRoundRect(rect, r, r, bgPaint)
             borderPaint.strokeWidth = dp(1.5f)
-            borderPaint.color = Color.parseColor("#39415A")
+            borderPaint.color = ContextCompat.getColor(context, R.color.cardLockedBorder)
             borderPaint.pathEffect = DashPathEffect(floatArrayOf(dp(5f), dp(4f)), 0f)
             canvas.drawRoundRect(rect, r, r, borderPaint)
             borderPaint.pathEffect = null
@@ -176,7 +179,7 @@ class CardView @JvmOverloads constructor(
             }
 
             textPaint.textSize = minOf(w, h) * 0.10f
-            textPaint.color = Color.parseColor("#4A5370")
+            textPaint.color = ContextCompat.getColor(context, R.color.cardLockedText)
             canvas.drawText(
                 CardCatalog.formattedNumber(cardNumber) + " · 未收集",
                 w / 2, h * 0.86f, textPaint

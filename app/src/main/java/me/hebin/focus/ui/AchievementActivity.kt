@@ -10,6 +10,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import me.hebin.focus.R
 import me.hebin.focus.data.Achievements
@@ -24,11 +25,12 @@ class AchievementActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityAchievementBinding
 
-    private val cTextPrimary = 0xFFF2F5FF.toInt()
-    private val cTextSecondary = 0xFF9AA3C0.toInt()
-    private val cMuted = 0xFF39415A.toInt()
-    private val cAccent = 0xFFFFC94D.toInt()
-    private val cTrack = 0xFF232B40.toInt()
+    // 主题色：getter 取值，随浅色/深色切换
+    private val cTextPrimary: Int get() = ContextCompat.getColor(this, R.color.textPrimary)
+    private val cTextSecondary: Int get() = ContextCompat.getColor(this, R.color.textSecondary)
+    private val cMuted: Int get() = ContextCompat.getColor(this, R.color.cardLockedBorder)
+    private val cAccent: Int get() = ContextCompat.getColor(this, R.color.primary)
+    private val cTrack: Int get() = ContextCompat.getColor(this, R.color.track)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

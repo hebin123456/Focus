@@ -58,13 +58,44 @@
                     android:layout_height="1dp"
                     android:layout_weight="1" />
 
+                <!-- 金币余额（前台挂机累积，点击进商店） -->
+                <LinearLayout
+                    android:id="@+id/coinChip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="34dp"
+                    android:layout_marginEnd="10dp"
+                    android:background="@drawable/bg_coin_pill"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:foreground="?attr/selectableItemBackgroundBorderless"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="10dp">
+
+                    <ImageView
+                        android:layout_width="16dp"
+                        android:layout_height="16dp"
+                        android:importantForAccessibility="no"
+                        android:src="@drawable/ic_coin" />
+
+                    <TextView
+                        android:id="@+id/textCoins"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:text="0"
+                        android:textColor="@color/coinText"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
                 <!-- 侧边栏小头像入口 -->
                 <com.google.android.material.imageview.ShapeableImageView
                     android:id="@+id/imgAvatarMini"
                     android:layout_width="34dp"
                     android:layout_height="34dp"
                     android:contentDescription="个人资料"
-                    app:shapeAppearanceOverlay="@style/CircleImage" />
+                    app:shapeAppearanceOverlay="@style/CircleImage.Overlay" />
             </LinearLayout>
 
             <TextView
@@ -330,7 +361,7 @@
                 android:layout_width="64dp"
                 android:layout_height="64dp"
                 android:contentDescription="头像"
-                app:shapeAppearanceOverlay="@style/CircleImage" />
+                app:shapeAppearanceOverlay="@style/CircleImage.Overlay" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -486,6 +517,74 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/navWorkshop"
+            style="@style/DrawerItem"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_craft"
+                app:tint="@color/textSecondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="卡片工坊"
+                android:textColor="@color/textPrimary"
+                android:textSize="15sp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="›"
+                android:textColor="@color/textSecondary"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navShop"
+            style="@style/DrawerItem"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_shop"
+                app:tint="@color/textSecondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="道具商店"
+                android:textColor="@color/textPrimary"
+                android:textSize="15sp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="›"
+                android:textColor="@color/textSecondary"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/navReward"
             style="@style/DrawerItem"
             android:layout_width="match_parent"
@@ -524,6 +623,74 @@
             android:layout_height="1dp"
             android:layout_marginHorizontal="16dp"
             android:background="@color/track" />
+
+        <LinearLayout
+            android:id="@+id/navIcon"
+            style="@style/DrawerItem"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_theme"
+                app:tint="@color/textSecondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="自定义图标"
+                android:textColor="@color/textPrimary"
+                android:textSize="15sp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="›"
+                android:textColor="@color/textSecondary"
+                android:textSize="18sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/navTheme"
+            style="@style/DrawerItem"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <ImageView
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:importantForAccessibility="no"
+                android:src="@drawable/ic_appearance"
+                app:tint="@color/textSecondary" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="外观主题"
+                android:textColor="@color/textPrimary"
+                android:textSize="15sp" />
+
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="›"
+                android:textColor="@color/textSecondary"
+                android:textSize="18sp" />
+        </LinearLayout>
 
         <LinearLayout
             android:id="@+id/navAbout"
@@ -569,7 +736,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:paddingBottom="16dp"
-            android:text="Focus v0.3.0 · 本地资料版"
+            android:text="Focus v0.6.0 · 本地资料版"
             android:textColor="@color/textSecondary"
             android:textSize="11sp" />
     </LinearLayout>

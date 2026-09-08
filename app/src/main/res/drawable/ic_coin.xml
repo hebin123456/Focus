@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 外圈 -->
+    <path
+        android:fillColor="#F5C542"
+        android:pathData="M12,2a10,10 0 1,0 0,20a10,10 0 1,0 0,-20z" />
+    <!-- 内圈 -->
+    <path
+        android:fillColor="#E3AC2F"
+        android:pathData="M12,4.6a7.4,7.4 0 1,0 0,14.8a7.4,7.4 0 1,0 0,-14.8z" />
+    <!-- 高光 -->
+    <path
+        android:fillColor="#FFE59A"
+        android:pathData="M12,7.2a4.8,4.8 0 1,0 0,9.6a4.8,4.8 0 1,0 0,-9.6z" />
+    <!-- 中心 F -->
+    <path
+        android:fillColor="#B27E1A"
+        android:pathData="M10.2,8.2h3.9v1.35h-2.4v1.15h2.2v1.35h-2.2v2.75h-1.5z" />
+</vector>

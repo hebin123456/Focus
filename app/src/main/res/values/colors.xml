@@ -1,14 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 浅色主题（默认）；深色见 values-night/colors.xml -->
 <resources>
-    <color name="background">#0B0E18</color>
-    <color name="surface">#151A2A</color>
-    <color name="surfaceVariant">#1D2436</color>
+    <color name="background">#F6F7FB</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="surfaceVariant">#EDF0F7</color>
     <color name="primary">#FFC94D</color>
     <color name="onPrimary">#1A1400</color>
-    <color name="secondary">#67E8F9</color>
-    <color name="textPrimary">#F2F5FF</color>
-    <color name="textSecondary">#9AA3C0</color>
-    <color name="danger">#FF6B6B</color>
-    <color name="track">#232B40</color>
+    <color name="secondary">#0E7490</color>
+    <color name="textPrimary">#1C2333</color>
+    <color name="textSecondary">#5C6577</color>
+    <color name="danger">#E5484D</color>
+    <color name="track">#E2E7F1</color>
+    <!-- 金币数字（浅色下用深金保证对比度） -->
+    <color name="coinText">#B45309</color>
+    <!-- 图鉴未收集卡（浅色卡面 + 深色剪影） -->
+    <color name="cardLockedBgTop">#EDF0F7</color>
+    <color name="cardLockedBgBottom">#F7F9FD</color>
+    <color name="cardLockedBorder">#C5CDDD</color>
+    <color name="cardLockedText">#8B94A8</color>
     <color name="ic_launcher_background">#0D0D22</color>
 </resources>

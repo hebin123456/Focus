@@ -38,7 +38,12 @@ object FocusSessionManager {
             val fromBackground: Boolean = false
         ) : State()
 
-        data class Cracked(val reason: String) : State()
+        /** 碎裂：reason 展示用；minutes/elapsedMs 用于统计文案 */
+        data class Cracked(
+            val reason: String,
+            val minutes: Int = 0,
+            val elapsedMs: Long = 0L
+        ) : State()
     }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -92,16 +97,27 @@ object FocusSessionManager {
 
     /** 用户离开 App（非锁屏、非旋转）→ 卡片碎裂 */
     fun crackByLeaving(context: Context) {
-        if (state !is State.Focusing) return
-        CollectionRepository.get(context).addCrack()
-        setState(State.Cracked("离开了应用，卡片碎裂了…"))
+        val s = state as? State.Focusing ?: return
+        val repo = CollectionRepository.get(context)
+        repo.addCrack()
+        val elapsed = System.currentTimeMillis() - s.startedAt
+        // 落盘：若进程随后被杀，回来后由主页/专注页兜底告知
+        repo.savePendingCrack(
+            CollectionRepository.PendingCrack("离开了应用，卡片碎裂了…", s.minutes, elapsed)
+        )
+        setState(State.Cracked("离开了应用，卡片碎裂了…", s.minutes, elapsed))
     }
 
     /** 用户主动放弃 → 同样碎裂 */
     fun giveUp(context: Context) {
-        if (state !is State.Focusing) return
-        CollectionRepository.get(context).addCrack()
-        setState(State.Cracked("放弃了专注，卡片碎裂了…"))
+        val s = state as? State.Focusing ?: return
+        val repo = CollectionRepository.get(context)
+        repo.addCrack()
+        val elapsed = System.currentTimeMillis() - s.startedAt
+        repo.savePendingCrack(
+            CollectionRepository.PendingCrack("放弃了专注，卡片碎裂了…", s.minutes, elapsed)
+        )
+        setState(State.Cracked("放弃了专注，卡片碎裂了…", s.minutes, elapsed))
     }
 
     /** 查看完结果后复位 */

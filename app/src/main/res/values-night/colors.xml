@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 深色主题（原暗黑配色） -->
+<resources>
+    <color name="background">#0B0E18</color>
+    <color name="surface">#151A2A</color>
+    <color name="surfaceVariant">#1D2436</color>
+    <color name="primary">#FFC94D</color>
+    <color name="onPrimary">#1A1400</color>
+    <color name="secondary">#67E8F9</color>
+    <color name="textPrimary">#F2F5FF</color>
+    <color name="textSecondary">#9AA3C0</color>
+    <color name="danger">#FF6B6B</color>
+    <color name="track">#232B40</color>
+    <color name="coinText">#F5C542</color>
+    <color name="cardLockedBgTop">#141826</color>
+    <color name="cardLockedBgBottom">#0D101A</color>
+    <color name="cardLockedBorder">#39415A</color>
+    <color name="cardLockedText">#4A5370</color>
+    <color name="ic_launcher_background">#0D0D22</color>
+</resources>

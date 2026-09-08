@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 浅色主题：系统栏图标用深色 -->
+    <bool name="lightBars">true</bool>
+</resources>

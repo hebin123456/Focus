@@ -16,6 +16,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.bottomsheet.BottomSheetDialog
@@ -32,6 +33,7 @@ import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.CollectionRepository
 import me.hebin.focus.data.DailyLoginManager
 import me.hebin.focus.data.DropEngine
+import me.hebin.focus.data.ShopStore
 import me.hebin.focus.databinding.ActivityMainBinding
 import me.hebin.focus.session.FocusSessionManager
 import me.hebin.focus.ui.view.CardView
@@ -94,6 +96,23 @@ class MainActivity : AppCompatActivity() {
             binding.drawerLayout.closeDrawer(Gravity.START)
             startActivity(Intent(this, CollectionActivity::class.java))
         }
+        binding.navWorkshop.setOnClickListener {
+            binding.drawerLayout.closeDrawer(Gravity.START)
+            startActivity(Intent(this, WorkshopActivity::class.java))
+        }
+        binding.navShop.setOnClickListener {
+            binding.drawerLayout.closeDrawer(Gravity.START)
+            startActivity(Intent(this, ShopActivity::class.java))
+        }
+        binding.navIcon.setOnClickListener {
+            binding.drawerLayout.closeDrawer(Gravity.START)
+            IconPicker.show(this)
+        }
+        binding.navTheme.setOnClickListener {
+            binding.drawerLayout.closeDrawer(Gravity.START)
+            showThemeDialog()
+        }
+        binding.coinChip.setOnClickListener { startActivity(Intent(this, ShopActivity::class.java)) }
         binding.navReward.setOnClickListener {
             binding.drawerLayout.closeDrawer(Gravity.START)
             startActivity(Intent(this, RewardActivity::class.java))
@@ -115,6 +134,24 @@ class MainActivity : AppCompatActivity() {
         checkDailyLogin()
     }
 
+    override fun onResume() {
+        super.onResume()
+        coinTicker.run()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        binding.textCoins.removeCallbacks(coinTicker)
+    }
+
+    /** 金币前台累积跳动（每 5 秒刷一次显示） */
+    private val coinTicker = object : Runnable {
+        override fun run() {
+            binding.textCoins.text = ShopStore.get(this@MainActivity).currentCoins().toString()
+            binding.textCoins.postDelayed(this, 5_000)
+        }
+    }
+
     /** 专注会话结果兜底（后台完成 / 进程被杀后重启） */
     private fun handleSessionResult() {
         val repo = CollectionRepository.get(this)
@@ -125,7 +162,36 @@ class MainActivity : AppCompatActivity() {
             pending != null -> showDrop(pending)
         }
         if (state is FocusSessionManager.State.Success) FocusSessionManager.reset()
+
+        // 上次专注碎裂但用户还没被告知（最小化切走 / 进程被杀后回来）
+        repo.takePendingCrack()?.let { pc ->
+            val stat = pc.statLine()
+            AlertDialog.Builder(this)
+                .setTitle("卡片碎裂了")
+                .setMessage(
+                    buildString {
+                        append("上次专注中途离开，卡片碎裂了\n")
+                        if (stat.isNotEmpty()) append(stat).append('\n')
+                        append("再试一次，坚持到底！")
+                    }
+                )
+                .setPositiveButton("知道了") { d, _ -> d.dismiss() }
+                .show()
+        }
         checkAchievementUnlocks()
+    }
+
+    /** 外观主题：跟随系统 / 浅色 / 深色 */
+    private fun showThemeDialog() {
+        val current = ThemeStore.mode(this)
+        AlertDialog.Builder(this)
+            .setTitle("外观主题")
+            .setSingleChoiceItems(ThemeStore.labels, current) { d, which ->
+                d.dismiss()
+                if (which != ThemeStore.mode(this)) ThemeStore.setMode(this, which)
+            }
+            .setNegativeButton("取消") { d, _ -> d.dismiss() }
+            .show()
     }
 
     /** 每日登录：联网校验时间 → 发卡弹窗 */
@@ -246,7 +312,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(TextView(this).apply {
             text = "个人资料"
             textSize = 18f
-            setTextColor(0xFFF2F5FF.toInt())
+            setTextColor(color(R.color.textPrimary))
             paint.isFakeBoldText = true
             gravity = Gravity.CENTER_HORIZONTAL
         })
@@ -255,7 +321,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(TextView(this).apply {
             text = "点击头像从相册更换"
             textSize = 12f
-            setTextColor(0xFF9AA3C0.toInt())
+            setTextColor(color(R.color.textSecondary))
             gravity = Gravity.CENTER_HORIZONTAL
             setPadding(0, dp(6), 0, 0)
         })
@@ -264,7 +330,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(TextView(this).apply {
             text = "或选择配色生成头像"
             textSize = 13f
-            setTextColor(0xFFF2F5FF.toInt())
+            setTextColor(color(R.color.textPrimary))
             setPadding(0, pad, 0, dp(8))
         })
 
@@ -294,16 +360,16 @@ class MainActivity : AppCompatActivity() {
         root.addView(TextView(this).apply {
             text = "昵称"
             textSize = 13f
-            setTextColor(0xFFF2F5FF.toInt())
+            setTextColor(color(R.color.textPrimary))
             setPadding(0, pad, 0, dp(6))
         })
         val input = EditText(this).apply {
             setText(repo.nickname)
             hint = "输入昵称"
-            setTextColor(0xFFF2F5FF.toInt())
-            setHintTextColor(0xFF9AA3C0.toInt())
+            setTextColor(color(R.color.textPrimary))
+            setHintTextColor(color(R.color.textSecondary))
             inputType = InputType.TYPE_CLASS_TEXT
-            backgroundTintList = ColorStateList.valueOf(0xFFFFC94D.toInt())
+            backgroundTintList = ColorStateList.valueOf(color(R.color.primary))
         }
         root.addView(input)
 
@@ -313,7 +379,7 @@ class MainActivity : AppCompatActivity() {
         root.addView(TextView(this).apply {
             text = "当前勋章"
             textSize = 13f
-            setTextColor(0xFFF2F5FF.toInt())
+            setTextColor(color(R.color.textPrimary))
             setPadding(0, pad, 0, dp(6))
         })
         root.addView(TextView(this).apply {
@@ -321,7 +387,7 @@ class MainActivity : AppCompatActivity() {
             else if (Achievements.currentBadge(repo) != null) "已获得勋章但未佩戴（点数 $pts）"
             else "暂无勋章（点数 $pts），达成成就可以解锁勋章"
             textSize = 14f
-            setTextColor(0xFF9AA3C0.toInt())
+            setTextColor(color(R.color.textSecondary))
             isClickable = true
             setOnClickListener {
                 sheet.dismiss()
@@ -359,6 +425,9 @@ class MainActivity : AppCompatActivity() {
             Focus 是一款游戏化专注 App：专注时卡片以剪影慢慢生成，中途离开 App 卡片会碎裂；坚持到底翻卡收入图鉴。
 
             · 101 张萌宠卡 × 5 种稀有度，集齐图鉴可兑换奖励
+            · 卡片工坊：分解随机得 3 张低级卡，3 张合成 1 张高级卡（结果随机）
+            · 金币与道具商店：App 前台挂机攒金币，道具敬请期待
+            · 自定义图标：用收集到的萌宠当桌面图标，样式跟随稀有度
             · 每日登录送卡，连续越久卡越好（联网校验时间）
             · 成就点数解锁青铜/白银/黄金/钻石勋章，可佩戴展示
             · 资料仅保存在本地，无账号无上传
@@ -373,6 +442,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
+    /** 主题色（随浅色/深色切换） */
+    private fun color(id: Int): Int = ContextCompat.getColor(this, id)
 
     // ---------------- 掉落弹窗 ----------------
 
@@ -438,7 +510,7 @@ class MainActivity : AppCompatActivity() {
         val hint = LayoutInflater.from(this).inflate(R.layout.item_rarity_row, rows, false)
         hint.findViewById<TextView>(R.id.rowRarity).apply {
             text = "已连续登录 ${r.streak} 天，坚持打卡奖励会升级"
-            setTextColor(0xFF9AA3C0.toInt())
+            setTextColor(color(R.color.textSecondary))
         }
         rows.addView(hint)
 

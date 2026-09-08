@@ -63,6 +63,27 @@ class CollectionRepository private constructor(context: Context) {
         pushRecent(cardId, rarity)
     }
 
+    /** 消耗卡片（分解 / 合成用），数量不足返回 false */
+    fun consumeCard(cardId: Int, rarity: Rarity, count: Int = 1): Boolean {
+        if (count <= 0) return true
+        val root = JSONObject(prefs.getString(KEY_CARDS, "{}"))
+        val key = cardId.toString()
+        val o = root.optJSONObject(key) ?: return false
+        val cur = o.optInt(rarity.ordinal.toString(), 0)
+        if (cur < count) return false
+        val left = cur - count
+        if (left > 0) o.put(rarity.ordinal.toString(), left) else o.remove(rarity.ordinal.toString())
+        if (o.length() == 0) root.remove(key) else root.put(key, o)
+        prefs.edit().putString(KEY_CARDS, root.toString()).apply()
+        cardsCache = null
+        return true
+    }
+
+    /** 工坊用：所有持有槽位（编号, 稀有度, 数量），按稀有度升序、编号升序 */
+    fun ownedSlots(): List<Triple<Int, Rarity, Int>> =
+        cardsMap().flatMap { (id, m) -> m.map { (r, c) -> Triple(id, r, c) } }
+            .sortedWith(compareBy({ it.second.ordinal }, { it.first }))
+
     /** 最近获得的卡（最新在前，主页展示条用） */
     fun recentCards(limit: Int = 12): List<Pair<Int, Rarity>> {
         val arr = prefs.getString(KEY_RECENT, null) ?: return emptyList()
@@ -195,12 +216,46 @@ class CollectionRepository private constructor(context: Context) {
         }.getOrNull()
     }
 
+    // ---------- 未被告知的碎裂（回来后提示用） ----------
+
+    /** 一次未确认的碎裂：reason + 本次专注的总分钟数 + 已坚持毫秒数 */
+    data class PendingCrack(val reason: String, val minutes: Int, val elapsedMs: Long) {
+        /** "坚持了 X 分 Y 秒（完成 Z%）"；minutes<=0 时返回空串 */
+        fun statLine(): String = crackStatLine(minutes, elapsedMs)
+    }
+
+    fun savePendingCrack(pc: PendingCrack) {
+        val o = JSONObject()
+            .put("reason", pc.reason)
+            .put("minutes", pc.minutes)
+            .put("elapsedMs", pc.elapsedMs)
+        prefs.edit().putString(KEY_PENDING_CRACK, o.toString()).apply()
+    }
+
+    fun peekPendingCrack(): PendingCrack? = parsePendingCrack(prefs.getString(KEY_PENDING_CRACK, null))
+
+    /** 取走（用户已知悉后调用；若无返回 null） */
+    fun takePendingCrack(): PendingCrack? {
+        val pc = peekPendingCrack() ?: return null
+        prefs.edit().remove(KEY_PENDING_CRACK).apply()
+        return pc
+    }
+
+    private fun parsePendingCrack(s: String?): PendingCrack? {
+        if (s == null) return null
+        return runCatching {
+            val o = JSONObject(s)
+            PendingCrack(o.getString("reason"), o.optInt("minutes", 0), o.optLong("elapsedMs", 0L))
+        }.getOrNull()
+    }
+
     companion object {
         private const val KEY_CARDS = "cards"
         private const val KEY_MINUTES = "totalMinutes"
         private const val KEY_SESSIONS = "sessions"
         private const val KEY_CRACKED = "cracked"
         private const val KEY_PENDING = "pendingDrop"
+        private const val KEY_PENDING_CRACK = "pendingCrack"
         private const val KEY_NICKNAME = "nickname"
         private const val KEY_RECENT = "recentCards"
         private const val KEY_LAST_CLAIM_DAY = "lastClaimDay"
@@ -217,4 +272,14 @@ class CollectionRepository private constructor(context: Context) {
                 instance ?: CollectionRepository(context).also { instance = it }
             }
     }
+}
+
+/** 碎裂统计文案："坚持了 X 分 Y 秒（完成 Z%）" */
+fun crackStatLine(minutes: Int, elapsedMs: Long): String {
+    if (minutes <= 0) return ""
+    val total = minutes * 60_000f
+    val pct = if (total > 0f) (elapsedMs / total * 100).toInt().coerceIn(0, 100) else 0
+    val m = elapsedMs / 60_000
+    val s = (elapsedMs % 60_000) / 1000
+    return "坚持了 $m 分 ${s} 秒（完成 $pct%）"
 }
