@@ -246,13 +246,16 @@ class ShopStore private constructor(context: Context) {
     fun cardRotationNextAt(): Long =
         (System.currentTimeMillis() / HOUR_MS + 1) * HOUR_MS
 
-    /** 购买补给卡：扣金币 → 标记已购 → 入图鉴；已购或金币不足返回 false */
-    fun buyCard(cardId: Int, rarity: Rarity): Boolean {
+    /** 补给卡购买结果 */
+    enum class BuyCardResult { OK, WINDOW_REFRESHED, ALREADY_BOUGHT, NO_COINS }
+
+    /** 购买补给卡：扣金币 → 标记已购 → 入图鉴 */
+    fun buyCard(cardId: Int, rarity: Rarity): BuyCardResult {
         cardRotation() // 确保窗口是当前小时的
         val root = runCatching {
             JSONObject(prefs.getString(KEY_CARD_SHOP, "{}"))
         }.getOrDefault(JSONObject())
-        val arr = root.optJSONArray("entries") ?: return false
+        val arr = root.optJSONArray("entries") ?: return BuyCardResult.WINDOW_REFRESHED
 
         var entry: JSONObject? = null
         for (i in 0 until arr.length()) {
@@ -262,16 +265,16 @@ class ShopStore private constructor(context: Context) {
                 break
             }
         }
-        val e = entry ?: return false
-        if (e.optBoolean("b", false)) return false
+        val e = entry ?: return BuyCardResult.WINDOW_REFRESHED
+        if (e.optBoolean("b", false)) return BuyCardResult.ALREADY_BOUGHT
 
         val price = CARD_PRICES[rarity.ordinal]
-        if (!trySpend(price)) return false
+        if (!trySpend(price)) return BuyCardResult.NO_COINS
 
         e.put("b", true)
         prefs.edit().putString(KEY_CARD_SHOP, root.toString()).apply()
         CollectionRepository.get(appCtx).addCard(cardId, rarity)
-        return true
+        return BuyCardResult.OK
     }
 
     private fun rollCardRarity(rng: Random): Rarity {

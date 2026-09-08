@@ -30,27 +30,36 @@ class ShopActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityShopBinding
 
-    /** 每秒刷新倒计时；到点自动重刷补给窗口 */
+    /** 每秒刷新倒计时；到点自动重刷补给窗口。
+     *  注意：只在「跨整点」和「磁铁刚到期」两种边界整页重绘，
+     *  平时只改文本 —— 否则每秒重建列表会把点击中的按钮换掉，导致买不了东西。
+     */
     private val ticker = Handler(Looper.getMainLooper())
+    private var magnetWasActive = false
+
     private val tick = object : Runnable {
         override fun run() {
             val shop = ShopStore.get(this@ShopActivity)
             val left = shop.cardRotationNextAt() - System.currentTimeMillis()
             if (left <= 0) {
-                refresh() // 跨整点，重刷补给窗口并重绘全页
-            } else {
-                binding.textCardRefresh.text = String.format(
-                    Locale.CHINA, "%02d:%02d 后刷新", left / 60_000, left % 60_000 / 1000
-                )
-                // 磁铁剩余时间 / 到期整页重绘
-                val magnetText = magnetRemainText()
-                if (magnetText == null) {
-                    if (magnetDescView != null) refresh()
-                } else {
-                    magnetDescView?.text = magnetText
-                }
-                ticker.postDelayed(this, 1000)
+                refresh() // 跨整点：重刷补给窗口并重绘全页（refresh 内部会重新 post tick）
+                return
             }
+            binding.textCardRefresh.text = String.format(
+                Locale.CHINA, "%02d:%02d 后刷新", left / 60_000, left % 60_000 / 1000
+            )
+            // 磁铁倒计时：只更新文本，不重绘
+            val magnetText = magnetRemainText()
+            if (magnetText != null) {
+                magnetDescView?.text = magnetText
+                magnetWasActive = true
+            } else if (magnetWasActive) {
+                // 磁铁刚到期：整页重绘一次恢复正常文案
+                magnetWasActive = false
+                refresh()
+                return
+            }
+            ticker.postDelayed(this, 1000)
         }
     }
 
@@ -144,10 +153,15 @@ class ShopActivity : AppCompatActivity() {
             )
             .setPositiveButton("购买") { d, _ ->
                 d.dismiss()
-                if (shop.buyCard(e.cardId, e.rarity)) {
-                    Toast.makeText(this, "已获得 $name · ${e.rarity.label}", Toast.LENGTH_SHORT).show()
-                } else {
-                    Toast.makeText(this, "金币不足，再挂一会儿吧", Toast.LENGTH_SHORT).show()
+                when (shop.buyCard(e.cardId, e.rarity)) {
+                    ShopStore.BuyCardResult.OK ->
+                        Toast.makeText(this, "已获得 $name · ${e.rarity.label}", Toast.LENGTH_SHORT).show()
+                    ShopStore.BuyCardResult.NO_COINS ->
+                        Toast.makeText(this, "金币不足，再挂一会儿吧", Toast.LENGTH_SHORT).show()
+                    ShopStore.BuyCardResult.ALREADY_BOUGHT ->
+                        Toast.makeText(this, "这张已经买过了", Toast.LENGTH_SHORT).show()
+                    ShopStore.BuyCardResult.WINDOW_REFRESHED ->
+                        Toast.makeText(this, "补给刚刷新，这批卡片已下架", Toast.LENGTH_SHORT).show()
                 }
                 refresh()
             }
