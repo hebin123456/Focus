@@ -543,8 +543,9 @@ class MainActivity : AppCompatActivity() {
 
     // ---------------- 桌面接管（实验） ----------------
 
-    /** HOME 别名：启用后 Focus 成为候选启动器，按 Home 回到 Focus 而非桌面 */
-    private val homeComponent = ComponentName(this, "me.hebin.focus.icon.home")
+    /** HOME 别名：启用后 Focus 成为候选启动器，按 Home 回到 Focus 而非桌面。
+     *  必须 lazy：属性初始化期 Context 尚未 attach，提前构造会 NPE 闪退 */
+    private val homeComponent by lazy { ComponentName(this, "me.hebin.focus.icon.home") }
 
     private fun showLauncherDialog() {
         val pm = packageManager
