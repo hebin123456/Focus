@@ -1,0 +1,21 @@
+# Gradle
+.gradle/
+build/
+app/build/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 本地环境配置（含代理等机器相关信息，不入库）
+local.properties
+
+# 签名文件与凭据
+*.jks
+*.keystore
+keystore.properties
+
+# 系统文件
+.DS_Store
+*.log
