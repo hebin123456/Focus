@@ -25,16 +25,14 @@ class MainActivity : AppCompatActivity() {
 
         val durations = listOf(10, 25, 45, 60, 90, 120)
         durations.forEachIndexed { i, m ->
-            binding.chipGroupDuration.addView(
-                layoutInflater.inflate(
-                    me.hebin.focus.R.layout.item_chip_duration, binding.chipGroupDuration, false
-                ).apply {
-                    id = me.hebin.focus.R.id.chip_duration_base + i
-                    text = "${m} 分钟"
-                    tag = m
-                    isCheckable = true
-                }
-            )
+            val chip = layoutInflater.inflate(
+                me.hebin.focus.R.layout.item_chip_duration, binding.chipGroupDuration, false
+            ) as com.google.android.material.chip.Chip
+            chip.id = me.hebin.focus.R.id.chip_duration_base + i
+            chip.text = "${m} 分钟"
+            chip.tag = m
+            chip.isCheckable = true
+            binding.chipGroupDuration.addView(chip)
         }
         binding.chipGroupDuration.check(me.hebin.focus.R.id.chip_duration_base + 1) // 默认 25 分钟
 
