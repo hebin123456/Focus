@@ -3,7 +3,8 @@ package me.hebin.focus.ui
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.TextView
+import android.view.View
+import android.widget.GridLayout
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -16,15 +17,16 @@ import me.hebin.focus.data.ShopCardEntry
 import me.hebin.focus.data.ShopItem
 import me.hebin.focus.data.ShopStore
 import me.hebin.focus.databinding.ActivityShopBinding
-import me.hebin.focus.databinding.ItemBagRowBinding
+import me.hebin.focus.databinding.ItemBagTileBinding
 import me.hebin.focus.databinding.ItemShopCardBinding
-import me.hebin.focus.databinding.ItemShopRowBinding
+import me.hebin.focus.databinding.ItemShopTileBinding
 import me.hebin.focus.ui.view.CardView
 import java.util.Locale
 
 /**
- * 道具商店：金币余额 + 卡片补给（每小时随机刷新，每张限购 1 次）+ 道具列表 + 我的背包。
- * 金币在 App 前台时线性累积（每满 1 分钟 +1）；道具在卡片工坊使用。
+ * 道具商店：金币余额 + 卡片补给（每小时随机刷新，每张限购 1 次，可花 30 金币立即换一批）
+ * + 道具网格（3 列竖版小卡）+ 我的背包（点击查看，磁铁在背包手动激活）。
+ * 金币在 App 前台时线性累积（每满 1 分钟 +1）；所有购买均需二次确认。
  */
 class ShopActivity : AppCompatActivity() {
 
@@ -32,7 +34,7 @@ class ShopActivity : AppCompatActivity() {
 
     /** 每秒刷新倒计时；到点自动重刷补给窗口。
      *  注意：只在「跨整点」和「磁铁刚到期」两种边界整页重绘，
-     *  平时只改文本 —— 否则每秒重建列表会把点击中的按钮换掉，导致买不了东西。
+     *  平时只改文本 —— 否则每秒重建网格会把点击中的按钮换掉，导致买不了东西。
      */
     private val ticker = Handler(Looper.getMainLooper())
     private var magnetWasActive = false
@@ -48,10 +50,10 @@ class ShopActivity : AppCompatActivity() {
             binding.textCardRefresh.text = String.format(
                 Locale.CHINA, "%02d:%02d 后刷新", left / 60_000, left % 60_000 / 1000
             )
-            // 磁铁倒计时：只更新文本，不重绘
+            // 磁铁倒计时：只更新金币卡的提示文本，不重绘
             val magnetText = magnetRemainText()
             if (magnetText != null) {
-                magnetDescView?.text = magnetText
+                binding.textRateHint.text = magnetText
                 magnetWasActive = true
             } else if (magnetWasActive) {
                 // 磁铁刚到期：整页重绘一次恢复正常文案
@@ -69,7 +71,9 @@ class ShopActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         binding.btnBack.setOnClickListener { finish() }
-        binding.textRateHint.text = "App 在前台时每满 1 分钟 +1 金币"
+        binding.btnRefreshCards.setOnClickListener {
+            confirmRefreshCards(ShopStore.get(this))
+        }
     }
 
     override fun onResume() {
@@ -86,8 +90,7 @@ class ShopActivity : AppCompatActivity() {
 
     private fun refresh() {
         val shop = ShopStore.get(this)
-        binding.textCoinCount.text = shop.currentCoins().toString()
-        binding.progressNextCoin.progress = (shop.nextCoinProgress() * 100).toInt()
+        renderCoinCard(shop)
         renderCardShop(shop)
         renderShop(shop)
         renderBag(shop)
@@ -95,9 +98,15 @@ class ShopActivity : AppCompatActivity() {
         ticker.post(tick)
     }
 
-    // ---------- 金币磁铁剩余时间（每秒刷新） ----------
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
 
-    private var magnetDescView: TextView? = null
+    // ---------- 金币卡（磁铁激活时提示行显示倒计时） ----------
+
+    private fun renderCoinCard(shop: ShopStore) {
+        binding.textCoinCount.text = shop.currentCoins().toString()
+        binding.progressNextCoin.progress = (shop.nextCoinProgress() * 100).toInt()
+        binding.textRateHint.text = magnetRemainText() ?: "App 在前台时每满 1 分钟 +1 金币"
+    }
 
     private fun magnetRemainText(): String? {
         val left = ShopStore.get(this).magnetActiveUntil() - System.currentTimeMillis()
@@ -105,7 +114,8 @@ class ShopActivity : AppCompatActivity() {
         val h = left / 3_600_000
         val m = left % 3_600_000 / 60_000
         val s = left % 60_000 / 1000
-        return if (h > 0) "翻倍中 · 剩余 ${h}:${m}" else "翻倍中 · 剩余 %02d:%02d".format(m, s)
+        return if (h > 0) "🧲 翻倍中 · 剩余 ${h}:${m}"
+        else "🧲 翻倍中 · 剩余 %02d:%02d".format(m, s)
     }
 
     // ---------- 卡片补给 ----------
@@ -169,70 +179,72 @@ class ShopActivity : AppCompatActivity() {
             .show()
     }
 
-    // ---------- 道具 ----------
-
-    private fun renderShop(shop: ShopStore) {
-        binding.shopList.removeAllViews()
-        magnetDescView = null
-        val items = ItemCatalog.items
-        binding.textShopEmpty.isVisible = items.isEmpty()
-        items.forEach { item ->
-            val row = ItemShopRowBinding.inflate(layoutInflater, binding.shopList, false)
-            row.textItemName.text = item.name
-            row.textItemDesc.text = item.desc
-            row.textItemPrice.text = "${item.price} 金币"
-
-            // 磁铁激活中：描述行显示倒计时（tick 每秒更新）
-            if (item.id == ItemCatalog.ID_MAGNET) {
-                magnetRemainText()?.let { row.textItemDesc.text = it }
-                magnetDescView = row.textItemDesc
-            }
-            // 时光回溯：没有可找回的碎裂记录时禁用购买
-            if (item.id == ItemCatalog.ID_REWIND) {
-                val rewindable = CollectionRepository.get(this).latestRewindableCrack()
-                row.btnBuy.isEnabled = rewindable != null
-                if (rewindable == null) row.textItemDesc.text = "暂无可找回的碎裂记录（有过碎裂后可用）"
-            }
-
-            row.btnBuy.setOnClickListener { onBuyItem(shop, item) }
-            binding.shopList.addView(row.root)
-        }
-    }
-
-    /** 购买入口：即时型走专属流程，普通道具入背包 */
-    private fun onBuyItem(shop: ShopStore, item: ShopItem) {
-        when (item.id) {
-            ItemCatalog.ID_MAGNET -> buyMagnet(shop, item)
-            ItemCatalog.ID_REWIND -> buyRewind(shop, item)
-            ItemCatalog.ID_REFRESH -> buyRefreshTicket(shop, item)
-            else -> {
-                if (shop.buy(item)) {
-                    Toast.makeText(this, "已购买「${item.name}」，放入背包", Toast.LENGTH_SHORT).show()
-                    refresh()
-                } else {
-                    Toast.makeText(this, "金币不足，再挂一会儿吧", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    /** 金币磁铁：购买立即激活 1 小时（可叠加延长） */
-    private fun buyMagnet(shop: ShopStore, item: ShopItem) {
-        val active = shop.isMagnetActive()
+    /** 补给区 ⟳：花 30 金币立即换一批补给卡 */
+    private fun confirmRefreshCards(shop: ShopStore) {
         AlertDialog.Builder(this)
-            .setTitle("金币磁铁")
+            .setTitle("刷新卡片补给")
             .setMessage(
-                if (active) "当前磁铁已在生效中，再次购买将在剩余时间上追加 1 小时。花费 ${item.price} 金币？"
-                else "花费 ${item.price} 金币，激活 1 小时金币获取翻倍？"
+                "花费 ${ItemCatalog.CARD_REFRESH_COST} 金币，立刻换一批补给卡？\n" +
+                    "当前这批作废，包括未购买的"
             )
-            .setPositiveButton("购买") { d, _ ->
+            .setPositiveButton("刷新") { d, _ ->
                 d.dismiss()
-                if (!shop.trySpend(item.price)) {
+                if (!shop.trySpend(ItemCatalog.CARD_REFRESH_COST)) {
                     Toast.makeText(this, "金币不足，再挂一会儿吧", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                shop.extendMagnet(3_600_000)
-                Toast.makeText(this, "🧲 金币翻倍已生效 1 小时", Toast.LENGTH_SHORT).show()
+                shop.refreshCardRotation()
+                Toast.makeText(this, "已换上新一批补给卡", Toast.LENGTH_SHORT).show()
+                refresh()
+            }
+            .setNegativeButton("再想想", null)
+            .show()
+    }
+
+    // ---------- 道具网格 ----------
+
+    private fun renderShop(shop: ShopStore) {
+        binding.shopList.removeAllViews()
+        val items = ItemCatalog.items
+        binding.textShopEmpty.isVisible = items.isEmpty()
+        items.forEach { item ->
+            val tile = ItemShopTileBinding.inflate(layoutInflater, binding.shopList, false)
+            tile.textItemName.text = item.name
+            tile.textItemDesc.text = item.desc
+            tile.textItemPrice.text = "${item.price} 金币"
+
+            // 时光回溯：没有可找回的碎裂记录时禁用购买
+            if (item.id == ItemCatalog.ID_REWIND) {
+                val rewindable = CollectionRepository.get(this).latestRewindableCrack()
+                tile.btnBuy.isEnabled = rewindable != null
+                if (rewindable == null) tile.textItemDesc.text = "暂无可找回的碎裂记录（有过碎裂后可用）"
+            }
+
+            tile.btnBuy.setOnClickListener { onBuyItem(shop, item) }
+            addGridTile(binding.shopList, tile.root)
+        }
+    }
+
+    /** 购买入口：时光回溯有专属流程（要选碎裂记录），其余统一二次确认 */
+    private fun onBuyItem(shop: ShopStore, item: ShopItem) {
+        when (item.id) {
+            ItemCatalog.ID_REWIND -> buyRewind(shop, item)
+            else -> confirmBuyItem(shop, item)
+        }
+    }
+
+    /** 二次确认：金币来之不易，避免误触 */
+    private fun confirmBuyItem(shop: ShopStore, item: ShopItem) {
+        AlertDialog.Builder(this)
+            .setTitle("购买「${item.name}」")
+            .setMessage("${item.desc}\n\n花费 ${item.price} 金币购买？")
+            .setPositiveButton("购买") { d, _ ->
+                d.dismiss()
+                if (shop.buy(item)) {
+                    Toast.makeText(this, "已购买「${item.name}」，放入背包", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "金币不足，再挂一会儿吧", Toast.LENGTH_SHORT).show()
+                }
                 refresh()
             }
             .setNegativeButton("再想想", null)
@@ -277,24 +289,7 @@ class ShopActivity : AppCompatActivity() {
             .show()
     }
 
-    /** 刷新券：立即重刷卡片补给窗口（可无限次购买使用） */
-    private fun buyRefreshTicket(shop: ShopStore, item: ShopItem) {
-        AlertDialog.Builder(this)
-            .setTitle("刷新卡片补给")
-            .setMessage("花费 ${item.price} 金币，立刻换一批补给卡？（当前这批作废，包括未购买的）")
-            .setPositiveButton("刷新") { d, _ ->
-                d.dismiss()
-                if (!shop.trySpend(item.price)) {
-                    Toast.makeText(this, "金币不足，再挂一会儿吧", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                shop.refreshCardRotation()
-                Toast.makeText(this, "已换上新一批补给卡", Toast.LENGTH_SHORT).show()
-                refresh()
-            }
-            .setNegativeButton("再想想", null)
-            .show()
-    }
+    // ---------- 背包网格 ----------
 
     private fun renderBag(shop: ShopStore) {
         binding.bagList.removeAllViews()
@@ -303,11 +298,63 @@ class ShopActivity : AppCompatActivity() {
             .sortedBy { it.first.id }
         binding.textBagEmpty.isVisible = owned.isEmpty()
         owned.forEach { (item, n) ->
-            val row = ItemBagRowBinding.inflate(layoutInflater, binding.bagList, false)
-            row.textBagName.text = item.name
-            row.textBagCount.text = "×$n"
-            row.textBagDesc.text = item.desc
-            binding.bagList.addView(row.root)
+            val tile = ItemBagTileBinding.inflate(layoutInflater, binding.bagList, false)
+            tile.textBagName.text = item.name
+            tile.textBagCount.text = "×$n"
+            tile.textBagDesc.text = item.desc
+            tile.root.setOnClickListener { onBagItemTap(item, n) }
+            addGridTile(binding.bagList, tile.root)
         }
+    }
+
+    /** 背包道具详情：磁铁手动激活，其余展示说明与使用位置 */
+    private fun onBagItemTap(item: ShopItem, count: Int) {
+        if (item.id == ItemCatalog.ID_MAGNET) {
+            val shop = ShopStore.get(this)
+            val active = shop.isMagnetActive()
+            AlertDialog.Builder(this)
+                .setTitle("${item.name} ×$count")
+                .setMessage(
+                    "${item.desc}\n\n" + if (active)
+                        "磁铁生效中，现在使用将在剩余时间上追加 1 小时。使用 1 个？"
+                    else "使用 1 个，激活 1 小时金币获取翻倍？"
+                )
+                .setPositiveButton("使用") { d, _ ->
+                    d.dismiss()
+                    if (!shop.consumeItem(item.id)) {
+                        Toast.makeText(this, "背包里没有「${item.name}」了", Toast.LENGTH_SHORT).show()
+                        return@setPositiveButton
+                    }
+                    shop.extendMagnet(3_600_000)
+                    Toast.makeText(this, "🧲 金币翻倍已生效 1 小时", Toast.LENGTH_SHORT).show()
+                    refresh()
+                }
+                .setNegativeButton("取消", null)
+                .show()
+        } else {
+            AlertDialog.Builder(this)
+                .setTitle("${item.name} ×$count")
+                .setMessage("${item.desc}\n\n${whereToUse(item.id)}")
+                .setPositiveButton("好的", null)
+                .show()
+        }
+    }
+
+    private fun whereToUse(id: String): String = when (id) {
+        ItemCatalog.ID_FORGE, ItemCatalog.ID_SPLIT, ItemCatalog.ID_SWAP,
+        ItemCatalog.ID_MEGA_SWAP, ItemCatalog.ID_UPGRADE -> "在卡片工坊中使用"
+        else -> "满足条件时自动消耗，无需手动操作"
+    }
+
+    /** 往 3 列网格加一个等宽单元格（列权重 1） */
+    private fun addGridTile(parent: GridLayout, child: View) {
+        val lp = GridLayout.LayoutParams(
+            GridLayout.spec(GridLayout.UNDEFINED),
+            GridLayout.spec(GridLayout.UNDEFINED, 1f)
+        )
+        lp.width = 0
+        val m = dp(4)
+        lp.setMargins(m, m, m, m)
+        parent.addView(child, lp)
     }
 }

@@ -12,7 +12,7 @@ data class ShopItem(
     val name: String,
     val desc: String,
     val price: Int,
-    /** 即时型：购买立即生效，不入背包（磁铁/回溯/刷新券） */
+    /** 即时型：购买立即生效，不入背包（时光回溯） */
     val instant: Boolean = false
 )
 
@@ -30,7 +30,9 @@ object ItemCatalog {
     const val ID_MAGNET = "coin_magnet"      // 金币磁铁
     const val ID_UPGRADE = "upgrade_stone"   // 升级石
     const val ID_REWIND = "time_rewind"      // 时光回溯
-    const val ID_REFRESH = "refresh_ticket"  // 刷新券
+
+    /** 卡片补给手动刷新花费（补给区 ⟳ 按钮） */
+    const val CARD_REFRESH_COST = 30
 
     /**
      * 道具清单。一次性消耗品；instant 型购买即生效。
@@ -83,20 +85,13 @@ object ItemCatalog {
         ),
         ShopItem(
             ID_MAGNET, "金币磁铁",
-            "购买立即生效：1 小时内金币获取翻倍（可叠加延长）",
-            100,
-            instant = true
+            "放入背包，需要时手动使用：激活 1 小时金币获取翻倍（可叠加延长）",
+            100
         ),
         ShopItem(
             ID_REWIND, "时光回溯",
             "购买立即生效：找回最近一次碎裂，按当次专注时长补发 1 张掉落（每条碎裂记录只能回溯 1 次）",
             250,
-            instant = true
-        ),
-        ShopItem(
-            ID_REFRESH, "刷新券",
-            "购买立即生效：立刻重刷卡片补给窗口，不用等整点（可无限次使用）",
-            30,
             instant = true
         )
     )
@@ -171,7 +166,7 @@ class ShopStore private constructor(context: Context) {
     /**
      * 当前小时的补给窗口：跨小时自动重刷一批随机卡（编号 + 稀有度均随机）。
      * 稀有度权重 普38 / 铜30 / 银18 / 金11 / 钻3，钻石可遇不可求。
-     * 刷新券通过 seq 失效当前窗口 → 立即生成新一批。
+     * 手动刷新（补给区 ⟳ 按钮，花金币）通过 seq 失效当前窗口 → 立即生成新一批。
      */
     fun cardRotation(): List<ShopCardEntry> {
         val bucket = System.currentTimeMillis() / HOUR_MS
@@ -220,10 +215,10 @@ class ShopStore private constructor(context: Context) {
         }
     }
 
-    /** 当前窗口序号（刷新券 +1 失效旧窗口） */
+    /** 当前窗口序号（手动刷新 +1 失效旧窗口） */
     private fun cardShopSeq(): Long = prefs.getLong(KEY_CARD_SHOP_SEQ, 0L)
 
-    /** 刷新券：立即作废当前补给窗口，下次读取时生成新一批 */
+    /** 手动刷新：立即作废当前补给窗口，下次读取时生成新一批 */
     fun refreshCardRotation() {
         prefs.edit().putLong(KEY_CARD_SHOP_SEQ, cardShopSeq() + 1).apply()
     }
