@@ -80,6 +80,7 @@ class FocusActivity : AppCompatActivity() {
             }
         }
         FocusSessionManager.addListener(stateListener)
+        binding.btnGiveUp.setOnClickListener { confirmGiveUp() }
         startTicker()
     }
 
