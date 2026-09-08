@@ -209,6 +209,18 @@
                     android:textSize="13sp"
                     app:cornerRadius="14dp"
                     app:strokeWidth="1dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnUpgrade"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="46dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:text="升级"
+                    android:textSize="13sp"
+                    app:cornerRadius="14dp"
+                    app:strokeWidth="1dp" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton

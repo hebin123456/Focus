@@ -110,6 +110,10 @@ object CraftEngine {
         return DropEngine.Drop(newId, rarity)
     }
 
+    /** 升级石产物稀有度：直接升 1 级；钻石返回 null（不可再升） */
+    fun upgradeTarget(r: Rarity): Rarity? =
+        if (r == Rarity.DIAMOND) null else Rarity.entries[r.ordinal + 1]
+
     /** 超级转换石定向转换：1 张卡 → 指定编号的同品质卡 */
     fun convertInto(
         repo: CollectionRepository,
@@ -121,5 +125,17 @@ object CraftEngine {
         if (!repo.consumeCard(cardId, rarity, 1)) return null
         repo.addCard(targetId, rarity)
         return DropEngine.Drop(targetId, rarity)
+    }
+
+    /** 升级石：1 张卡直接升 1 级稀有度，编号不变；钻石不可用 */
+    fun upgradeRarity(
+        repo: CollectionRepository,
+        cardId: Int,
+        rarity: Rarity
+    ): DropEngine.Drop? {
+        val up = upgradeTarget(rarity) ?: return null
+        if (!repo.consumeCard(cardId, rarity, 1)) return null
+        repo.addCard(cardId, up)
+        return DropEngine.Drop(cardId, up)
     }
 }

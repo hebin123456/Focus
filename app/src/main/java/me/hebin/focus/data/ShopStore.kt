@@ -11,7 +11,9 @@ data class ShopItem(
     val id: String,
     val name: String,
     val desc: String,
-    val price: Int
+    val price: Int,
+    /** 即时型：购买立即生效，不入背包（磁铁/回溯/刷新券） */
+    val instant: Boolean = false
 )
 
 object ItemCatalog {
@@ -21,10 +23,17 @@ object ItemCatalog {
     const val ID_SPLIT = "split_stone"       // 分解石
     const val ID_SWAP = "swap_stone"         // 转换石
     const val ID_MEGA_SWAP = "mega_swap"     // 超级转换石
+    const val ID_SHIELD = "card_shield"      // 卡片护盾
+    const val ID_PAUSE = "pause_ticket"      // 暂停券
+    const val ID_LUCKY = "lucky_charm"       // 幸运符
+    const val ID_DOUBLE = "double_drop"      // 双倍掉落
+    const val ID_MAGNET = "coin_magnet"      // 金币磁铁
+    const val ID_UPGRADE = "upgrade_stone"   // 升级石
+    const val ID_REWIND = "time_rewind"      // 时光回溯
+    const val ID_REFRESH = "refresh_ticket"  // 刷新券
 
     /**
-     * 道具清单：工坊定向操作道具。
-     * 全部为一次性消耗品，在卡片工坊使用。
+     * 道具清单。一次性消耗品；instant 型购买即生效。
      */
     val items: List<ShopItem> = listOf(
         ShopItem(
@@ -38,6 +47,11 @@ object ItemCatalog {
             100
         ),
         ShopItem(
+            ID_UPGRADE, "升级石",
+            "1 张卡片直接升 1 级稀有度（普→铜→银→金→钻），无需凑 3 张；钻石卡不可用",
+            200
+        ),
+        ShopItem(
             ID_SWAP, "转换石",
             "1 张卡片转换成随机的另一张同品质卡片（必定不同编号）",
             50
@@ -46,6 +60,44 @@ object ItemCatalog {
             ID_MEGA_SWAP, "超级转换石",
             "1 张卡片转换成指定的同品质卡片",
             100
+        ),
+        ShopItem(
+            ID_SHIELD, "卡片护盾",
+            "专注中意外离开 App / 被浮窗遮挡时自动消耗 1 个，卡片保住不碎（主动放弃不消耗）",
+            60
+        ),
+        ShopItem(
+            ID_PAUSE, "暂停券",
+            "专注中允许暂停 1 次：倒计时冻结 5 分钟，期间短暂离开也不碎裂（每场限用 1 张）",
+            80
+        ),
+        ShopItem(
+            ID_LUCKY, "幸运符",
+            "下一次专注完成时自动消耗，掉落卡片稀有度提升 1 级（钻石封顶）",
+            50
+        ),
+        ShopItem(
+            ID_DOUBLE, "双倍掉落",
+            "下一次专注完成时自动消耗，额外再掉 1 张卡",
+            90
+        ),
+        ShopItem(
+            ID_MAGNET, "金币磁铁",
+            "购买立即生效：1 小时内金币获取翻倍（可叠加延长）",
+            100,
+            instant = true
+        ),
+        ShopItem(
+            ID_REWIND, "时光回溯",
+            "购买立即生效：找回最近一次碎裂，按当次专注时长补发 1 张掉落（每条碎裂记录只能回溯 1 次）",
+            250,
+            instant = true
+        ),
+        ShopItem(
+            ID_REFRESH, "刷新券",
+            "购买立即生效：立刻重刷卡片补给窗口，不用等整点（可无限次使用）",
+            30,
+            instant = true
         )
     )
 
@@ -76,8 +128,24 @@ class ShopStore private constructor(context: Context) {
         get() = prefs.getLong(KEY_BANKED_MS, 0L)
         set(v) = prefs.edit().putLong(KEY_BANKED_MS, v.coerceAtLeast(0L)).apply()
 
+    // ---------- 金币磁铁（1 小时金币翻倍） ----------
+
+    /** 磁铁激活截止时刻；未激活返回 0 */
+    fun magnetActiveUntil(): Long = prefs.getLong(KEY_MAGNET_UNTIL, 0L)
+
+    fun isMagnetActive(): Boolean = System.currentTimeMillis() < magnetActiveUntil()
+
+    /** 激活 / 叠加延长磁铁（毫秒），返回叠加后的截止时刻 */
+    fun extendMagnet(ms: Long): Long {
+        val base = maxOf(magnetActiveUntil(), System.currentTimeMillis())
+        val until = base + ms
+        prefs.edit().putLong(KEY_MAGNET_UNTIL, until).apply()
+        return until
+    }
+
     fun addMs(ms: Long) {
-        if (ms > 0) bankedMs += ms
+        if (ms <= 0) return
+        bankedMs += if (isMagnetActive()) ms * 2 else ms
     }
 
     /** 当前金币数（含前台未入账部分） */
@@ -103,14 +171,16 @@ class ShopStore private constructor(context: Context) {
     /**
      * 当前小时的补给窗口：跨小时自动重刷一批随机卡（编号 + 稀有度均随机）。
      * 稀有度权重 普38 / 铜30 / 银18 / 金11 / 钻3，钻石可遇不可求。
+     * 刷新券通过 seq 失效当前窗口 → 立即生成新一批。
      */
     fun cardRotation(): List<ShopCardEntry> {
         val bucket = System.currentTimeMillis() / HOUR_MS
+        val seq = cardShopSeq()
         val root = runCatching {
             JSONObject(prefs.getString(KEY_CARD_SHOP, "{}"))
         }.getOrDefault(JSONObject())
 
-        if (root.optLong("bucket", -1) != bucket) {
+        if (root.optLong("bucket", -1) != bucket || root.optLong("seq", 0) != seq) {
             val rng = Random(System.currentTimeMillis())
             val ids = (1..CardCatalog.TOTAL).shuffled(rng).take(CARD_WINDOW_SIZE)
             val entries = JSONArray()
@@ -126,12 +196,16 @@ class ShopStore private constructor(context: Context) {
             prefs.edit()
                 .putString(
                     KEY_CARD_SHOP,
-                    JSONObject().put("bucket", bucket).put("entries", entries).toString()
+                    JSONObject()
+                        .put("bucket", bucket)
+                        .put("seq", seq)
+                        .put("entries", entries)
+                        .toString()
                 )
                 .apply()
         }
 
-        val arr = root.takeIf { it.optLong("bucket", -1) == bucket }
+        val arr = root.takeIf { it.optLong("bucket", -1) == bucket && it.optLong("seq", 0) == seq }
             ?.optJSONArray("entries")
             ?: return cardRotationNow()
         return (0 until arr.length()).mapNotNull { i ->
@@ -144,6 +218,14 @@ class ShopStore private constructor(context: Context) {
                 )
             }
         }
+    }
+
+    /** 当前窗口序号（刷新券 +1 失效旧窗口） */
+    private fun cardShopSeq(): Long = prefs.getLong(KEY_CARD_SHOP_SEQ, 0L)
+
+    /** 刷新券：立即作废当前补给窗口，下次读取时生成新一批 */
+    fun refreshCardRotation() {
+        prefs.edit().putLong(KEY_CARD_SHOP_SEQ, cardShopSeq() + 1).apply()
     }
 
     /** 读当前存储的窗口（仅在 bucket 一致时由 cardRotation 调用） */
@@ -270,6 +352,8 @@ class ShopStore private constructor(context: Context) {
         private const val KEY_BANKED_MS = "bankedMs"
         private const val KEY_INVENTORY = "inventory"
         private const val KEY_CARD_SHOP = "cardShop"
+        private const val KEY_CARD_SHOP_SEQ = "cardShopSeq"
+        private const val KEY_MAGNET_UNTIL = "magnetUntil"
 
         @Volatile private var instance: ShopStore? = null
 

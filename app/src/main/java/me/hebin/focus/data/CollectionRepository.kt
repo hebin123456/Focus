@@ -163,7 +163,9 @@ class CollectionRepository private constructor(context: Context) {
         val ts: Long,
         val reason: String,
         val minutes: Int,
-        val elapsedMs: Long
+        val elapsedMs: Long,
+        /** 已被时光回溯找回过（每条只能回溯 1 次） */
+        val rewound: Boolean = false
     ) {
         /** "坚持了 X 分 Y 秒（完成 Z%）"；minutes<=0 时返回空串 */
         fun statLine(): String = crackStatLine(minutes, elapsedMs)
@@ -179,6 +181,7 @@ class CollectionRepository private constructor(context: Context) {
                 .put("reason", reason)
                 .put("minutes", minutes)
                 .put("elapsedMs", elapsedMs)
+                .put("rw", false)
         )
         // 上限 500 条，超出丢弃最旧的
         while (arr.length() > 500) arr.remove(0)
@@ -198,10 +201,59 @@ class CollectionRepository private constructor(context: Context) {
                     o.optLong("ts", 0L),
                     o.optString("reason", ""),
                     o.optInt("minutes", 0),
-                    o.optLong("elapsedMs", 0L)
+                    o.optLong("elapsedMs", 0L),
+                    o.optBoolean("rw", false)
                 )
             }
         }.getOrDefault(emptyList())
+    }
+
+    /** 最近一条未回溯的碎裂记录（时光回溯用）；没有返回 null */
+    fun latestRewindableCrack(): CrackLog? {
+        val s = prefs.getString(KEY_CRACK_HISTORY, null) ?: return null
+        return runCatching {
+            val a = JSONArray(s)
+            for (i in a.length() - 1 downTo 0) {
+                val o = a.optJSONObject(i) ?: continue
+                if (!o.optBoolean("rw", false)) {
+                    return@runCatching CrackLog(
+                        o.optLong("ts", 0L),
+                        o.optString("reason", ""),
+                        o.optInt("minutes", 0),
+                        o.optLong("elapsedMs", 0L)
+                    )
+                }
+            }
+            null
+        }.getOrDefault(null)
+    }
+
+    /** 把指定时间的碎裂记录标记为已回溯 */
+    fun markCrackRewound(ts: Long) {
+        val s = prefs.getString(KEY_CRACK_HISTORY, null) ?: return
+        runCatching {
+            val a = JSONArray(s)
+            for (i in 0 until a.length()) {
+                val o = a.optJSONObject(i) ?: continue
+                if (o.optLong("ts", 0L) == ts) {
+                    o.put("rw", true)
+                    break
+                }
+            }
+            prefs.edit().putString(KEY_CRACK_HISTORY, a.toString()).apply()
+        }
+    }
+
+    /**
+     * 时光回溯：找回最近一次未回溯的碎裂，按当次专注时长补 roll 一张卡。
+     * 成功返回掉落；没有可回溯的记录返回 null（不扣钱）。
+     */
+    fun rewindCrack(): DropEngine.Drop? {
+        val log = latestRewindableCrack() ?: return null
+        val drop = DropEngine.roll(log.minutes)
+        addCard(drop.cardId, drop.rarity)
+        markCrackRewound(log.ts)
+        return drop
     }
 
     fun addDeepSession() { deepSessions += 1 }

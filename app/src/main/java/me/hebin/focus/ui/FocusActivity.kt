@@ -29,6 +29,7 @@ import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.SeekBar
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
@@ -49,6 +50,7 @@ import me.hebin.focus.audio.AmbientSound
 import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.CollectionRepository
 import me.hebin.focus.data.DropEngine
+import me.hebin.focus.data.ShopStore
 import me.hebin.focus.data.crackStatLine
 import me.hebin.focus.databinding.ActivityFocusBinding
 import me.hebin.focus.session.FocusSessionManager
@@ -87,20 +89,31 @@ class FocusActivity : AppCompatActivity() {
     private var lockTaskRequestAt = 0L
 
     /** 浮窗/分屏遮挡检查：onPause 后延迟触发（onResume 会取消） */
-    private val overlayCheck = Runnable {
-        if (isFinishing || isChangingConfigurations) return@Runnable
-        if (FocusSessionManager.state !is State.Focusing) return@Runnable
-        if (FocusSessionManager.isScreenOffRecent()) return@Runnable // 锁屏不算
-        // 屏幕固定确认框期间（系统窗口持有焦点）不判离开
-        if (deep && lockTaskRequestAt > 0 && System.currentTimeMillis() - lockTaskRequestAt < 20_000) return@Runnable
-        if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
-            // 暂停但未停止：被悬浮窗 / 分屏 / 画中画遮挡
-            FocusSessionManager.crackByOverlay(this)
-        } else {
-            // 已停止：切走 App（onStop 兜底逻辑会因状态已变而跳过）
-            FocusSessionManager.crackByLeaving(this)
+    private val overlayCheck = object : Runnable {
+        override fun run() {
+            if (isFinishing || isChangingConfigurations) return
+            if (FocusSessionManager.state !is State.Focusing) return
+            if (FocusSessionManager.isScreenOffRecent()) return // 锁屏不算
+            // 屏幕固定确认框期间（系统窗口持有焦点）不判离开
+            if (deep && lockTaskRequestAt > 0 && System.currentTimeMillis() - lockTaskRequestAt < 20_000) return
+            // 暂停券豁免期内：推迟到豁免结束再补判，人没回来照样碎
+            if (FocusSessionManager.isLeaveShielded()) {
+                val wait = FocusSessionManager.LEAVE_SHIELD_RECHECK_AT - System.currentTimeMillis()
+                binding.root.postDelayed(this, wait.coerceAtLeast(200))
+                return
+            }
+            if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                // 暂停但未停止：被悬浮窗 / 分屏 / 画中画遮挡
+                FocusSessionManager.crackByOverlay(this@FocusActivity)
+            } else {
+                // 已停止：切走 App（onStop 兜底逻辑会因状态已变而跳过）
+                FocusSessionManager.crackByLeaving(this@FocusActivity)
+            }
         }
     }
+
+    /** 上次已展示过的护盾时刻（用于 onResume 检测新增护盾） */
+    private var seenShieldAt = 0L
 
     /** 碎裂发生在后台（切走瞬间）或进程被杀后恢复时，回到前台补播动画 */
     private var replayCrack: State.Cracked? = null
@@ -149,6 +162,7 @@ class FocusActivity : AppCompatActivity() {
             replayCrack = st
         }
         binding.btnGiveUp.setOnClickListener { confirmGiveUp() }
+        binding.btnPause.setOnClickListener { confirmPause() }
         setupNoisePanel()
         // 深度专注：请求屏幕固定（Screen Pinning），Home/多任务/返回全部失效，长按返回才可退出
         if (deep && restoredCrack == null) {
@@ -171,6 +185,13 @@ class FocusActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         binding.root.removeCallbacks(overlayCheck)
+        // 护盾刚救过场：明确告诉用户（否则悄悄续命很困惑）
+        if (FocusSessionManager.lastShieldSavedAt > seenShieldAt) {
+            seenShieldAt = FocusSessionManager.lastShieldSavedAt
+            if (FocusSessionManager.state is State.Focusing) {
+                Toast.makeText(this, "🛡 护盾生效，卡片保住了", Toast.LENGTH_SHORT).show()
+            }
+        }
         // 后台碎裂 / 进程被杀恢复的动画在这里补播，让用户看清楚发生了什么
         val pc = replayCrack
         if (pc != null) {
@@ -239,8 +260,8 @@ class FocusActivity : AppCompatActivity() {
             is State.Focusing -> showFocusing(state)
             is State.Success -> {
                 releaseLockTask() // 结果已出，解除屏幕固定让用户正常操作
-                if (!resultShown) { resultShown = true; playReveal(state.drop) }
-                else showSuccessStatic(state.drop)
+                if (!resultShown) { resultShown = true; playReveal(state.drop, state.extraDrop, state.luckyUsed) }
+                else showSuccessStatic(state.drop, state.extraDrop, state.luckyUsed)
             }
             is State.Cracked -> {
                 releaseLockTask()
@@ -267,6 +288,8 @@ class FocusActivity : AppCompatActivity() {
         binding.textHint.isVisible = true
         // 深度专注不显示放弃按钮，减少诱惑；返回键仍可退出（弹强提醒）
         binding.btnGiveUp.isVisible = !deep
+        // 暂停券：非深度模式 + 持有 + 本场未用过时显示
+        binding.btnPause.isVisible = !deep && FocusSessionManager.canPause(ShopStore.get(this))
         binding.noisePanel.isVisible = true
         binding.cardSilhouette.isVisible = true
         binding.cardSilhouette.mode = CardView.Mode.SILHOUETTE
@@ -275,6 +298,23 @@ class FocusActivity : AppCompatActivity() {
         binding.textReason.isVisible = false
         binding.btnCollect.isVisible = false
         updateCountdown(state)
+    }
+
+    /** 暂停券确认：冻结倒计时 5 分钟，期间短暂离开不碎裂 */
+    private fun confirmPause() {
+        AlertDialog.Builder(this)
+            .setTitle("使用暂停券")
+            .setMessage("倒计时将冻结 5 分钟，期间短暂离开 App 也不会碎裂\n确定暂停？")
+            .setPositiveButton("暂停") { d, _ ->
+                d.dismiss()
+                if (FocusSessionManager.pause(this)) {
+                    Toast.makeText(this, "已暂停 5 分钟，去去就回", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "暂停券已用完或本场已用过", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("再想想", null)
+            .show()
     }
 
     private fun startTicker() {
@@ -289,6 +329,16 @@ class FocusActivity : AppCompatActivity() {
 
     private fun updateCountdown(s: State.Focusing) {
         val remain = (s.endAt - System.currentTimeMillis()).coerceAtLeast(0)
+        val pausedLeft = s.pausedUntil - System.currentTimeMillis()
+        if (pausedLeft > 0) {
+            // 暂停券生效：倒计时冻结，显示暂停剩余时间
+            binding.textCountdown.text = String.format(
+                "⏸ %02d:%02d", pausedLeft / 60000, pausedLeft % 60000 / 1000
+            )
+            binding.textTitle.text = "暂停中…"
+            return
+        }
+        if (s.pausedUntil > 0) binding.textTitle.text = "专注中，别走开"
         val m = remain / 60000
         val sec = (remain % 60000) / 1000
         binding.textCountdown.text = String.format("%02d:%02d", m, sec)
@@ -299,7 +349,7 @@ class FocusActivity : AppCompatActivity() {
 
     // ---------------- 成功：翻卡揭示 ----------------
 
-    private fun playReveal(drop: DropEngine.Drop) {
+    private fun playReveal(drop: DropEngine.Drop, extra: DropEngine.Drop? = null, lucky: Boolean = false) {
         vibrate(200)
         binding.textHint.isVisible = false
         binding.btnGiveUp.isVisible = false
@@ -332,14 +382,14 @@ class FocusActivity : AppCompatActivity() {
                             .withEndAction {
                                 front.animate().scaleX(1f).scaleY(1f).duration = 380
                             }.start()
-                        showSuccessStatic(drop)
+                        showSuccessStatic(drop, extra, lucky)
                     }
                     .start()
             }
             .start()
     }
 
-    private fun showSuccessStatic(drop: DropEngine.Drop) {
+    private fun showSuccessStatic(drop: DropEngine.Drop, extra: DropEngine.Drop? = null, lucky: Boolean = false) {
         binding.textCountdown.isVisible = false
         binding.progressFocus.isVisible = false
         binding.textTitle.text = "专注完成！"
@@ -347,7 +397,14 @@ class FocusActivity : AppCompatActivity() {
         binding.textResult.text = "获得 ${drop.rarity.label} · ${CardCatalog.displayName(drop.cardId)}"
         binding.textResult.setTextColor(drop.rarity.color)
         binding.textReason.isVisible = true
-        binding.textReason.text = if (deep) "已收入图鉴 · 深度专注金币翻倍" else "已收入图鉴"
+        binding.textReason.text = buildString {
+            if (lucky) append("🍀 幸运符生效，稀有度已提升\n")
+            if (extra != null) {
+                append("✨ 双倍掉落生效，额外获得 ")
+                append("${extra.rarity.label} · ${CardCatalog.displayName(extra.cardId)}\n")
+            }
+            append(if (deep) "已收入图鉴 · 深度专注金币翻倍" else "已收入图鉴")
+        }
         binding.btnCollect.isVisible = true
         binding.btnCollect.setOnClickListener {
             FocusSessionManager.reset()

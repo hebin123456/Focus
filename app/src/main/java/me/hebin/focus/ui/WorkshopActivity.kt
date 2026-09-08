@@ -101,6 +101,7 @@ class WorkshopActivity : AppCompatActivity() {
         binding.btnStoneAction.setOnClickListener { performStoneAction() }
         binding.btnConvertRandom.setOnClickListener { performConvertRandom() }
         binding.btnConvertPick.setOnClickListener { performConvertPick() }
+        binding.btnUpgrade.setOnClickListener { performUpgrade() }
     }
 
     override fun onDestroy() {
@@ -123,7 +124,7 @@ class WorkshopActivity : AppCompatActivity() {
         binding.textCraftHint.text = when (mode) {
             Mode.DECOMPOSE -> "选择 1 张卡片分解，随机获得 3 张低一级稀有度的卡片（普卡不可分解；只剩 1 张的卡会被保护，不可用）\n持有分解石可定向指定产物"
             Mode.SYNTHESIZE -> "选 3 张同稀有度卡片（可不同编号，重复点同张卡可叠加）合成 1 张更高稀有度的卡片；3 张钻石合成随机钻石卡；只剩 1 张的卡会被保护，不可用\n持有合成石可定向指定目标"
-            Mode.CONVERT -> "选 1 张卡片，用转换石换成随机的另一张同品质卡，或用超级转换石换成指定的同品质卡；只剩 1 张的卡会被保护，不可用"
+            Mode.CONVERT -> "选 1 张卡片，用转换石换成随机的另一张同品质卡，或用超级转换石换成指定的同品质卡；升级石可把卡片升 1 级稀有度；只剩 1 张的卡会被保护，不可用"
         }
         refreshBottomBar()
     }
@@ -316,25 +317,38 @@ class WorkshopActivity : AppCompatActivity() {
                 val sel = selected.entries.firstOrNull()
                 val swap = shop.itemCount(ItemCatalog.ID_SWAP)
                 val mega = shop.itemCount(ItemCatalog.ID_MEGA_SWAP)
-                binding.rowConvertStones.isVisible = swap > 0 || mega > 0
+                val up = shop.itemCount(ItemCatalog.ID_UPGRADE)
+                binding.rowConvertStones.isVisible = swap > 0 || mega > 0 || up > 0
                 binding.btnConvertRandom.isVisible = swap > 0
                 binding.btnConvertPick.isVisible = mega > 0
+                binding.btnUpgrade.isVisible = up > 0
                 if (swap > 0) {
-                    binding.btnConvertRandom.text = "随机转换 · 转换石 ×$swap"
+                    binding.btnConvertRandom.text = "随机转换 · ×$swap"
                     binding.btnConvertRandom.isEnabled = sel != null
                 }
                 if (mega > 0) {
-                    binding.btnConvertPick.text = "定向转换 · 超级转换石 ×$mega"
+                    binding.btnConvertPick.text = "定向转换 · ×$mega"
                     binding.btnConvertPick.isEnabled = sel != null
+                }
+                if (up > 0) {
+                    binding.btnUpgrade.text = "升级 · 升级石 ×$up"
+                    // 钻石卡不可升级；只剩 1 张的卡受保护
+                    binding.btnUpgrade.isEnabled = sel != null &&
+                        shown[sel.key].second != Rarity.DIAMOND
                 }
 
                 binding.textCraftSummary.text = when {
-                    sel == null && swap == 0 && mega == 0 ->
-                        "转换 = 同品质卡片互换\n转换道具可去商店购买"
-                    sel == null -> "从上方选择 1 张要转换的卡片"
+                    sel == null && swap == 0 && mega == 0 && up == 0 ->
+                        "转换 = 同品质卡片互换\n升级石 = 卡片升 1 级稀有度\n道具可去商店购买"
+                    sel == null -> "从上方选择 1 张要转换 / 升级的卡片"
                     else -> {
                         val (id, r, _) = shown[sel.key]
-                        "转换 ${CardCatalog.displayName(id)} · ${r.label}\n→ 同品质的另一张卡"
+                        if (r == Rarity.DIAMOND) {
+                            "已选 ${CardCatalog.displayName(id)} · 钻石\n钻石卡已是最高稀有度，不可升级，仅可转换"
+                        } else {
+                            val up2 = CraftEngine.upgradeTarget(r)!!
+                            "已选 ${CardCatalog.displayName(id)} · ${r.label}\n可转换为同品质另一张，或升级为${up2.label}"
+                        }
                     }
                 }
             }
@@ -542,6 +556,41 @@ class WorkshopActivity : AppCompatActivity() {
                 .setNegativeButton("再想想", null)
                 .show()
         }
+    }
+
+    /** 升级石：1 张卡直接升 1 级稀有度，编号不变 */
+    private fun performUpgrade() {
+        if (animating) return
+        val sel = selected.entries.firstOrNull() ?: return
+        val (id, r, _) = shown[sel.key]
+        val up = CraftEngine.upgradeTarget(r)
+        if (up == null) {
+            Toast.makeText(this, "钻石卡已是最高稀有度，无法升级", Toast.LENGTH_SHORT).show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("确认升级")
+            .setMessage(
+                "将 ${CardCatalog.displayName(id)} · ${r.label} 升级为 ${up.label}（编号不变），" +
+                    "并消耗 1 个升级石。确定吗？"
+            )
+            .setPositiveButton("升级") { d, _ ->
+                d.dismiss()
+                if (!ShopStore.get(this).consumeItem(ItemCatalog.ID_UPGRADE)) {
+                    Toast.makeText(this, "升级石不足", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val result = CraftEngine.upgradeRarity(CollectionRepository.get(this), id, r)
+                if (result == null) {
+                    Toast.makeText(this, "升级失败：卡片已不在背包", Toast.LENGTH_SHORT).show()
+                    reload()
+                } else {
+                    reload()
+                    playConvertAnim(id to r, result) { showResult("升级成功", listOf(result)) }
+                }
+            }
+            .setNegativeButton("再想想", null)
+            .show()
     }
 
     /**
