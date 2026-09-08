@@ -3,7 +3,9 @@ package me.hebin.focus.ui
 import android.app.Activity
 import android.view.ContextThemeWrapper
 import android.view.Gravity
+import android.view.View
 import android.view.ViewGroup
+import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -12,6 +14,8 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 import me.hebin.focus.R
 import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.CollectionRepository
@@ -83,35 +87,127 @@ object IconPicker {
                 setLineSpacing(dp(activity, 4).toFloat(), 1.0f)
             })
         } else {
-            val height = (activity.resources.displayMetrics.heightPixels * 0.55f).toInt()
+            // ---------- 筛选：稀有度 / 类别（集齐后条目多，靠筛选快速找卡） ----------
+            var curRarity: Rarity? = null
+            var curCategory: String? = null
+
+            val adapter = PickerAdapter { id, rarity ->
+                if (IconSwitcher.applyCard(activity, id, rarity)) {
+                    Toast.makeText(
+                        activity,
+                        "图标已更换！回到桌面看看效果（部分桌面需要几秒刷新）",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    sheet.dismiss()
+                } else {
+                    Toast.makeText(activity, "图标切换失败，请重试", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            val emptyFilter = TextView(activity).apply {
+                text = "没有符合条件的卡片，换个筛选试试"
+                textSize = 13f
+                setTextColor(ContextCompat.getColor(activity, R.color.textSecondary))
+                gravity = Gravity.CENTER_HORIZONTAL
+                setPadding(0, dp(activity, 40), 0, dp(activity, 40))
+                visibility = View.GONE
+            }
+
+            fun applyFilter() {
+                val list = owned.filter { (id, r, _) ->
+                    (curRarity == null || r == curRarity) &&
+                        (curCategory == null || CardCatalog.categoryOfId(id) == curCategory)
+                }
+                adapter.update(list)
+                emptyFilter.visibility = if (list.isEmpty()) View.VISIBLE else View.GONE
+            }
+
+            root.addView(
+                chipRow(
+                    activity,
+                    listOf(null) + Rarity.entries.toList(),
+                    { v -> (v as? Rarity)?.label ?: "全部稀有度" },
+                    { v -> curRarity = v as? Rarity; applyFilter() }
+                ).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = dp(activity, 12) }
+                }
+            )
+
+            val categories = owned.map { CardCatalog.categoryOfId(it.first) }.distinct()
+            root.addView(
+                chipRow(
+                    activity,
+                    listOf(null) + categories,
+                    { v -> if (v == null) "全部类别" else "${v}类" },
+                    { v -> curCategory = v as? String; applyFilter() }
+                ).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                    ).apply { topMargin = dp(activity, 6) }
+                }
+            )
+
+            root.addView(emptyFilter)
+
+            val height = (activity.resources.displayMetrics.heightPixels * 0.45f).toInt()
             root.addView(RecyclerView(activity).apply {
                 layoutManager = GridLayoutManager(activity, 4)
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, height
-                ).apply { topMargin = dp(activity, 14) }
-                adapter = PickerAdapter(owned) { id, rarity ->
-                    if (IconSwitcher.applyCard(activity, id, rarity)) {
-                        Toast.makeText(
-                            activity,
-                            "图标已更换！回到桌面看看效果（部分桌面需要几秒刷新）",
-                            Toast.LENGTH_LONG
-                        ).show()
-                        sheet.dismiss()
-                    } else {
-                        Toast.makeText(activity, "图标切换失败，请重试", Toast.LENGTH_SHORT).show()
-                    }
-                }
+                ).apply { topMargin = dp(activity, 10) }
+                this.adapter = adapter
             })
+            applyFilter()
         }
 
         sheet.setContentView(root)
         sheet.show()
     }
 
+    /** 水平滚动的筛选 Chip 行；values[0] 必须是 null（表示「全部」） */
+    private fun chipRow(
+        activity: Activity,
+        values: List<Any?>,
+        labelOf: (Any?) -> String,
+        onPick: (Any?) -> Unit
+    ): HorizontalScrollView {
+        val scroll = HorizontalScrollView(activity).apply { isHorizontalScrollBarEnabled = false }
+        val group = ChipGroup(activity).apply {
+            setSingleSelection(true)
+            setSelectionRequired(true)
+        }
+        values.forEachIndexed { i, v ->
+            val chip = Chip(
+                ContextThemeWrapper(
+                    activity,
+                    com.google.android.material.R.style.Widget_Material3_Chip_Filter
+                )
+            ).apply {
+                text = labelOf(v)
+                isCheckable = true
+                id = View.generateViewId()
+                if (i == 0) isChecked = true
+            }
+            chip.setOnCheckedChangeListener { _, checked -> if (checked) onPick(v) }
+            group.addView(chip)
+        }
+        scroll.addView(group)
+        return scroll
+    }
+
     private class PickerAdapter(
-        private val cards: List<Triple<Int, Rarity, Int>>,
         private val onPick: (Int, Rarity) -> Unit
     ) : RecyclerView.Adapter<PickerAdapter.VH>() {
+
+        private var cards: List<Triple<Int, Rarity, Int>> = emptyList()
+
+        /** 筛选变化时刷新数据集 */
+        fun update(list: List<Triple<Int, Rarity, Int>>) {
+            cards = list
+            notifyDataSetChanged()
+        }
 
         class VH(val card: CardView) : RecyclerView.ViewHolder(card)
 
