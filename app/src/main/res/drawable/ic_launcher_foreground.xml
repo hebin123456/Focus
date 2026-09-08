@@ -5,18 +5,8 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- 卡片主体（金色圆角矩形） -->
+    <!-- 字母 F（占位图标，后续换正式美术） -->
     <path
         android:fillColor="#FFC94D"
-        android:pathData="M42,30 h24 a6,6 0 0 1 6,6 v36 a6,6 0 0 1 -6,6 h-24 a6,6 0 0 1 -6,-6 v-36 a6,6 0 0 1 6,-6 z" />
-
-    <!-- 中央钻石（深色） -->
-    <path
-        android:fillColor="#0B0E18"
-        android:pathData="M54,40 L64,54 L54,68 L44,54 Z" />
-
-    <!-- 钻石内部高光 -->
-    <path
-        android:fillColor="#67E8F9"
-        android:pathData="M54,45 L59,54 L54,63 L49,54 Z" />
+        android:pathData="M44,32 h24 v12 h-12 v8 h10 v11 h-10 v13 h-12 z" />
 </vector>
