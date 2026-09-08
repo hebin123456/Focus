@@ -133,12 +133,17 @@
 
                         <TextView
                             android:id="@+id/statMinutes"
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:maxLines="1"
                             android:text="0"
                             android:textColor="@color/primary"
                             android:textSize="22sp"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            app:autoSizeMaxTextSize="22sp"
+                            app:autoSizeMinTextSize="13sp"
+                            app:autoSizeTextType="uniform" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -174,12 +179,17 @@
 
                         <TextView
                             android:id="@+id/statCollected"
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:maxLines="1"
                             android:text="0/101"
                             android:textColor="@color/secondary"
                             android:textSize="22sp"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            app:autoSizeMaxTextSize="22sp"
+                            app:autoSizeMinTextSize="13sp"
+                            app:autoSizeTextType="uniform" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -214,12 +224,17 @@
 
                         <TextView
                             android:id="@+id/statCracked"
-                            android:layout_width="wrap_content"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:maxLines="1"
                             android:text="0"
                             android:textColor="@color/danger"
                             android:textSize="22sp"
-                            android:textStyle="bold" />
+                            android:textStyle="bold"
+                            app:autoSizeMaxTextSize="22sp"
+                            app:autoSizeMinTextSize="13sp"
+                            app:autoSizeTextType="uniform" />
 
                         <TextView
                             android:layout_width="wrap_content"
