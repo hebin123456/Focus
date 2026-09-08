@@ -69,11 +69,9 @@ class CardGridAdapter(
         } else {
             title = "${CardCatalog.displayName(id)}（${CardCatalog.categoryOfId(id)}）"
 
-            // 切换行：多于一个稀有度时显示
+            // 切换行：多于一个稀有度时显示，卡片上左右滑动循环切换
             val switchRow = view.findViewById<android.view.View>(R.id.detailRaritySwitch)
             val textCur = view.findViewById<android.widget.TextView>(R.id.textCurRarity)
-            val btnPrev = view.findViewById<android.view.View>(R.id.btnRarePrev)
-            val btnNext = view.findViewById<android.view.View>(R.id.btnRareNext)
             fun renderCur() {
                 val r = owned[idx]
                 card.rarity = r
@@ -82,11 +80,26 @@ class CardGridAdapter(
             }
             if (owned.size > 1) {
                 switchRow.isVisible = true
-                btnPrev.setOnClickListener {
-                    idx = (idx - 1 + owned.size) % owned.size; renderCur()
-                }
-                btnNext.setOnClickListener {
-                    idx = (idx + 1) % owned.size; renderCur()
+                var downX = 0f
+                val slop = 40 * ctx.resources.displayMetrics.density
+                card.setOnTouchListener { v, e ->
+                    when (e.actionMasked) {
+                        android.view.MotionEvent.ACTION_DOWN -> {
+                            downX = e.x
+                            true
+                        }
+                        android.view.MotionEvent.ACTION_UP -> {
+                            val dx = e.x - downX
+                            if (kotlin.math.abs(dx) > slop) {
+                                idx = if (dx < 0) (idx + 1) % owned.size
+                                else (idx - 1 + owned.size) % owned.size
+                                renderCur()
+                            }
+                            v.performClick()
+                            true
+                        }
+                        else -> false
+                    }
                 }
             }
             renderCur()

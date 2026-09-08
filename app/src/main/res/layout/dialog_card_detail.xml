@@ -16,48 +16,31 @@
             android:layout_width="200dp"
             android:layout_height="283dp" />
 
-        <!-- 已收集多稀有度时可左右切换查看不同版本的卡 -->
+        <!-- 已收集多稀有度时：在卡片上左右滑动切换版本 -->
         <LinearLayout
             android:id="@+id/detailRaritySwitch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
+            android:gravity="center_horizontal"
+            android:orientation="vertical"
             android:visibility="gone">
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnRarePrev"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="44dp"
-                android:layout_height="40dp"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:minWidth="0dp"
-                android:padding="0dp"
-                android:text="‹"
-                android:textSize="20sp" />
 
             <TextView
                 android:id="@+id/textCurRarity"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="14dp"
                 android:textColor="@color/textPrimary"
-                android:textSize="14sp"
+                android:textSize="15sp"
                 android:textStyle="bold" />
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnRareNext"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="44dp"
-                android:layout_height="40dp"
-                android:insetLeft="0dp"
-                android:insetRight="0dp"
-                android:minWidth="0dp"
-                android:padding="0dp"
-                android:text="›"
-                android:textSize="20sp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="‹ 左右滑动切换稀有度 ›"
+                android:textColor="@color/textSecondary"
+                android:textSize="11sp" />
         </LinearLayout>
 
         <LinearLayout

@@ -39,8 +39,15 @@ class CardView @JvmOverloads constructor(
 
     enum class Mode { FACE, SILHOUETTE }
 
+    // 以下属性变更即重绘（详情弹窗切换稀有度依赖此行为）
     var mode: Mode = Mode.FACE
+        set(v) {
+            if (field != v) { field = v; invalidate() }
+        }
     var rarity: Rarity = Rarity.COMMON
+        set(v) {
+            if (field != v) { field = v; invalidate() }
+        }
     var cardNumber: Int = 1
         set(v) {
             if (field != v) {
@@ -51,6 +58,9 @@ class CardView @JvmOverloads constructor(
             }
         }
     var locked: Boolean = false
+        set(v) {
+            if (field != v) { field = v; invalidate() }
+        }
 
     /** 剪影生成进度 0..1（SILHOUETTE 模式下使用） */
     var revealProgress: Float = 0f
