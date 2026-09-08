@@ -99,12 +99,14 @@ class MainActivity : AppCompatActivity() {
             showAbout()
         }
         binding.imgBadge.setOnClickListener { startActivity(Intent(this, AchievementActivity::class.java)) }
+        binding.textShowcaseMore.setOnClickListener { startActivity(Intent(this, CollectionActivity::class.java)) }
     }
 
     override fun onStart() {
         super.onStart()
         refreshStats()
         refreshDrawerHeader()
+        refreshShowcase()
         handleSessionResult()
         checkDailyLogin()
     }
@@ -148,6 +150,36 @@ class MainActivity : AppCompatActivity() {
         }
         refreshStats()
         refreshDrawerHeader()
+        refreshShowcase()
+    }
+
+    /** 主页收藏展示条：最近获得的卡片横滑展示 */
+    private fun refreshShowcase() {
+        val repo = CollectionRepository.get(this)
+        val recent = repo.recentCards(12)
+        val row = binding.showcaseRow
+        row.removeAllViews()
+
+        val hasCards = recent.isNotEmpty()
+        binding.showcaseScroll.isVisible = hasCards
+        binding.showcaseEmpty.isVisible = !hasCards
+        binding.textShowcaseSub.text = if (hasCards) {
+            "最近获得 · 共 ${repo.totalCardsOwned()} 张"
+        } else "最近获得的卡片会展示在这里"
+
+        recent.forEach { (id, rarity) ->
+            val card = me.hebin.focus.ui.view.CardView(this).apply {
+                mode = CardView.Mode.FACE
+                this.rarity = rarity
+                cardNumber = id
+                locked = false
+                layoutParams = LinearLayout.LayoutParams(dp(104), LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                    marginEnd = dp(12)
+                }
+            }
+            card.setOnClickListener { showCardDetail("我的卡片", id, rarity) }
+            row.addView(card)
+        }
     }
 
     private fun refreshStats() {
@@ -340,20 +372,25 @@ class MainActivity : AppCompatActivity() {
 
     // ---------------- 掉落弹窗 ----------------
 
-    /** 专注完成后的掉落展示 */
-    private fun showDrop(drop: DropEngine.Drop) {
+    /** 通用卡片详情弹窗 */
+    private fun showCardDetail(title: String, cardId: Int, rarity: me.hebin.focus.data.Rarity) {
         val view = LayoutInflater.from(this).inflate(R.layout.dialog_card_detail, null)
         val card = view.findViewById<CardView>(R.id.detailCard)
         card.mode = CardView.Mode.FACE
-        card.rarity = drop.rarity
-        card.cardNumber = drop.cardId
+        card.rarity = rarity
+        card.cardNumber = cardId
         card.locked = false
 
         AlertDialog.Builder(this)
-            .setTitle("专注完成，获得卡片！")
+            .setTitle(title)
             .setView(view)
             .setPositiveButton("收下") { d, _ -> d.dismiss() }
             .show()
+    }
+
+    /** 专注完成后的掉落展示 */
+    private fun showDrop(drop: DropEngine.Drop) {
+        showCardDetail("专注完成，获得卡片！", drop.cardId, drop.rarity)
     }
 
     /** 每日登录奖励展示 */

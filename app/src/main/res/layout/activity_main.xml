@@ -224,18 +224,86 @@
                 android:textSize="12sp" />
 
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnStart"
-                android:layout_width="match_parent"
-                android:layout_height="58dp"
-                android:layout_marginTop="16dp"
-                android:layout_marginBottom="20dp"
-                android:text="开始专注"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                app:cornerRadius="16dp" />
+            android:id="@+id/btnStart"
+            android:layout_width="match_parent"
+            android:layout_height="58dp"
+            android:layout_marginTop="16dp"
+            android:text="开始专注"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            app:cornerRadius="16dp" />
 
+        <!-- 我的收藏展示（开始专注下方） -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="我的收藏"
+                android:textColor="@color/textPrimary"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/textShowcaseMore"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="?attr/selectableItemBackground"
+                android:paddingVertical="4dp"
+                android:paddingStart="8dp"
+                android:text="全部图鉴 ›"
+                android:textColor="@color/textSecondary"
+                android:textSize="13sp" />
         </LinearLayout>
-    </ScrollView>
+
+        <TextView
+            android:id="@+id/textShowcaseSub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="最近获得的卡片"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+
+        <!-- 空状态 -->
+        <TextView
+            android:id="@+id/showcaseEmpty"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@color/surface"
+            android:gravity="center"
+            android:paddingVertical="40dp"
+            android:text="还没有卡片\n完成第一次专注，你的萌宠就会出现这里"
+            android:textColor="@color/textSecondary"
+            android:textSize="13sp"
+            android:lineSpacingExtra="4dp" />
+
+        <!-- 卡片横滑展示条 -->
+        <HorizontalScrollView
+            android:id="@+id/showcaseScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:paddingBottom="24dp"
+            android:clipToPadding="false"
+            android:scrollbars="none">
+
+            <LinearLayout
+                android:id="@+id/showcaseRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+    </LinearLayout>
+</ScrollView>
 
     <!-- ==================== 侧边栏 ==================== -->
     <LinearLayout

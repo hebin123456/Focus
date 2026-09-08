@@ -1,6 +1,7 @@
 package me.hebin.focus.data
 
 import android.content.Context
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -59,6 +60,38 @@ class CollectionRepository private constructor(context: Context) {
         root.put(key, o)
         prefs.edit().putString(KEY_CARDS, root.toString()).apply()
         cardsCache = null
+        pushRecent(cardId, rarity)
+    }
+
+    /** 最近获得的卡（最新在前，主页展示条用） */
+    fun recentCards(limit: Int = 12): List<Pair<Int, Rarity>> {
+        val arr = prefs.getString(KEY_RECENT, null) ?: return emptyList()
+        return runCatching {
+            val a = JSONArray(arr)
+            (0 until a.length()).mapNotNull { i ->
+                val o = a.optJSONObject(i) ?: return@mapNotNull null
+                val id = o.optInt("id", -1)
+                val r = o.optInt("r", 0)
+                if (id in 1..CardCatalog.TOTAL) id to Rarity.fromOrdinalSafe(r) else null
+            }.take(limit)
+        }.getOrDefault(emptyList())
+    }
+
+    /** 记录最近获得（插入头部，超出 20 条截断） */
+    private fun pushRecent(cardId: Int, rarity: Rarity) {
+        val arr = runCatching {
+            JSONArray(prefs.getString(KEY_RECENT, "[]"))
+        }.getOrDefault(JSONArray())
+        val fresh = JSONArray()
+        fresh.put(JSONObject().put("id", cardId).put("r", rarity.ordinal))
+        for (i in 0 until arr.length()) {
+            if (fresh.length() >= 20) break
+            val o = arr.optJSONObject(i) ?: continue
+            // 同一张卡连着获得只留最新一条，展示更多样
+            if (o.optInt("id") == cardId && o.optInt("r") == rarity.ordinal) continue
+            fresh.put(o)
+        }
+        prefs.edit().putString(KEY_RECENT, fresh.toString()).apply()
     }
 
     /** 已集齐（至少拥有普卡版本）的编号数 */
@@ -169,6 +202,7 @@ class CollectionRepository private constructor(context: Context) {
         private const val KEY_CRACKED = "cracked"
         private const val KEY_PENDING = "pendingDrop"
         private const val KEY_NICKNAME = "nickname"
+        private const val KEY_RECENT = "recentCards"
         private const val KEY_LAST_CLAIM_DAY = "lastClaimDay"
         private const val KEY_LOGIN_STREAK = "loginStreak"
         private const val KEY_LAST_NET_TIME = "lastNetworkTime"
