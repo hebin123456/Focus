@@ -504,7 +504,7 @@ class MainActivity : AppCompatActivity() {
         val btnMore = view.findViewById<View>(R.id.btnMoreCracks)
         val textEmpty = view.findViewById<View>(R.id.textCrackEmpty)
 
-        val fmt = SimpleDateFormat("MM-dd HH:mm", Locale.getDefault())
+        val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val logs = mutableListOf<CollectionRepository.CrackLog>()
         val adapter = object : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
             override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = object : RecyclerView.ViewHolder(
