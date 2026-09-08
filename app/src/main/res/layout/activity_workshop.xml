@@ -73,6 +73,39 @@
         android:textColor="@color/textSecondary"
         android:textSize="12sp" />
 
+    <!-- 筛选：稀有度 + 类别（卡多时快速定位） -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:paddingHorizontal="16dp"
+        android:scrollbars="none">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipRarity"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleLine="true"
+            app:singleSelection="true"
+            app:selectionRequired="true" />
+    </HorizontalScrollView>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:paddingHorizontal="16dp"
+        android:scrollbars="none">
+
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chipCategory"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:singleLine="true"
+            app:singleSelection="true"
+            app:selectionRequired="true" />
+    </HorizontalScrollView>
+
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -132,5 +165,15 @@
             android:textStyle="bold"
             app:cornerRadius="16dp" />
     </LinearLayout>
+
+    <!-- 分解 / 合成演出覆盖层：半透明遮罩 + 动画卡片，播放时拦截触摸 -->
+    <FrameLayout
+        android:id="@+id/craftOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#CC0A0E16"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone" />
 
 </LinearLayout>
