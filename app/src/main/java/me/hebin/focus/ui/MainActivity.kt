@@ -23,6 +23,9 @@ import com.google.android.material.imageview.ShapeableImageView
 import kotlinx.coroutines.launch
 import me.hebin.focus.BuildConfig
 import me.hebin.focus.R
+import me.hebin.focus.ads.AdManager
+import me.hebin.focus.ads.AdPlacement
+import me.hebin.focus.ads.AdResult
 import me.hebin.focus.data.Achievements
 import me.hebin.focus.data.AvatarStore
 import me.hebin.focus.data.CollectionRepository
@@ -388,9 +391,37 @@ class MainActivity : AppCompatActivity() {
             .show()
     }
 
-    /** 专注完成后的掉落展示 */
+    /** 专注完成后的掉落展示（频控内提供看广告补领一张） */
     private fun showDrop(drop: DropEngine.Drop) {
-        showCardDetail("专注完成，获得卡片！", drop.cardId, drop.rarity)
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_card_detail, null)
+        val card = view.findViewById<CardView>(R.id.detailCard)
+        card.mode = CardView.Mode.FACE
+        card.rarity = drop.rarity
+        card.cardNumber = drop.cardId
+        card.locked = false
+
+        val builder = AlertDialog.Builder(this)
+            .setTitle("专注完成，获得卡片！")
+            .setView(view)
+            .setPositiveButton("收下") { d, _ -> d.dismiss() }
+
+        // 激励视频补领：只在频控可用时露出入口
+        if (AdManager.isAvailable(this, AdPlacement.REWARD_EXTRA_CARD)) {
+            builder.setNeutralButton("看广告再领1张") { d, _ ->
+                d.dismiss()
+                AdManager.maybeShow(this, AdPlacement.REWARD_EXTRA_CARD) { result ->
+                    if (result is AdResult.Rewarded) {
+                        runOnUiThread {
+                            val extra = DropEngine.roll(25) // 补领按标准 25 分钟档掉落
+                            CollectionRepository.get(this).addCard(extra.cardId, extra.rarity)
+                            checkAchievementUnlocks() // 顺带刷新主页统计/收藏条
+                            showDrop(extra) // 展示补领结果（频控已记录，不再弹广告入口）
+                        }
+                    }
+                }
+            }
+        }
+        builder.show()
     }
 
     /** 每日登录奖励展示 */
