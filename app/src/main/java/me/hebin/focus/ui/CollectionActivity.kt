@@ -27,8 +27,10 @@ class CollectionActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        EdgeToEdge.enable(this)
         binding = ActivityCollectionBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        EdgeToEdge.pad(binding.root)
 
         val repo = CollectionRepository.get(this)
         val collected = repo.collectedCount()

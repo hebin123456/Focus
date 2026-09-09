@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 弹窗入场：淡入 + 轻微放大 + 上移，decelerate 收尾有「弹一下」的手感 -->
+<set xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shareInterpolator="true"
+    android:interpolator="@android:interpolator/decelerate_quint">
+
+    <alpha
+        android:duration="200"
+        android:fromAlpha="0.0"
+        android:toAlpha="1.0" />
+
+    <scale
+        android:duration="240"
+        android:fromXScale="0.86"
+        android:fromYScale="0.86"
+        android:pivotX="50%"
+        android:pivotY="50%"
+        android:toXScale="1.0"
+        android:toYScale="1.0" />
+
+    <translate
+        android:duration="240"
+        android:fromYDelta="5%"
+        android:toYDelta="0%" />
+</set>

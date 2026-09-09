@@ -32,6 +32,14 @@ object CardArt {
     fun peek(id: Int): Bitmap? = cache.get(id)
 
     /**
+     * 同步塞入缓存（后台线程自行解码后调用）。
+     * 分享图离屏渲染前用它预热，保证 CardView 首次 draw 就有卡面。
+     */
+    fun warm(id: Int, bmp: Bitmap) {
+        cache.put(id, bmp)
+    }
+
+    /**
      * 获取卡面：命中缓存立即回调；否则异步解码后主线程回调。
      * RecyclerView 复用场景下，回调时用 id 比对防止串卡。
      */

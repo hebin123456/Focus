@@ -7,12 +7,13 @@
     android:orientation="vertical">
 
     <LinearLayout
+        android:id="@+id/headerBar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp"
-        android:paddingTop="28dp"
+        android:paddingTop="8dp"
         android:paddingBottom="8dp">
 
         <com.google.android.material.button.MaterialButton
@@ -127,6 +128,18 @@
                             android:progressBackgroundTint="@color/track"
                             android:progressTint="@color/coinText" />
                     </LinearLayout>
+
+                    <!-- 金币充值入口（支付通道接入中，先留档位口子） -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnBuyCoins"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:minWidth="0dp"
+                        android:text="＋充值"
+                        android:textSize="13sp"
+                        app:cornerRadius="12dp" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

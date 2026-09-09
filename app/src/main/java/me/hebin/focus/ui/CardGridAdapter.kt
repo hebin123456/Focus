@@ -140,13 +140,19 @@ class CardGridAdapter(
             .setPositiveButton("好的") { d, _ -> d.dismiss() }
             .show()
 
-        // 已收集：提供「设为自定义图标」入口，带着当前滑动到的稀有度直接确认
+        // 已收集：提供「设为自定义图标」与「分享卡片」入口，带着当前滑动到的稀有度
         if (counts.isNotEmpty()) {
             val btnSetIcon = view.findViewById<MaterialButton>(R.id.btnSetAsIcon)
             btnSetIcon.isVisible = true
             btnSetIcon.setOnClickListener {
                 val act = ctx as? android.app.Activity ?: return@setOnClickListener
                 IconPicker.confirmCard(act, id, owned[idx]) { dialog.dismiss() }
+            }
+            val btnShare = view.findViewById<MaterialButton>(R.id.btnShareCard)
+            btnShare.isVisible = true
+            btnShare.setOnClickListener {
+                val act = ctx as? androidx.fragment.app.FragmentActivity ?: return@setOnClickListener
+                ShareCard.share(act, id, owned[idx])
             }
         }
     }

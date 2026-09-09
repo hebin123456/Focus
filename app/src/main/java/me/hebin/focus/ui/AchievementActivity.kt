@@ -34,8 +34,10 @@ class AchievementActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        EdgeToEdge.enable(this)
         binding = ActivityAchievementBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        EdgeToEdge.pad(binding.root)
 
         binding.btnBack.setOnClickListener { finish() }
 

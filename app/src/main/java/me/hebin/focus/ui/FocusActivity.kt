@@ -135,8 +135,11 @@ class FocusActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 全屏沉浸：内容延伸到状态栏/导航栏底下（深度专注时系统栏整体隐藏，留白自动收起）
+        EdgeToEdge.enable(this)
         binding = ActivityFocusBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        EdgeToEdge.pad(binding.root)
 
         val minutes = intent.getIntExtra(EXTRA_MINUTES, 25)
         deep = intent.getBooleanExtra(EXTRA_DEEP, false)

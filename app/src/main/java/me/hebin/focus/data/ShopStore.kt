@@ -161,6 +161,13 @@ class ShopStore private constructor(context: Context) {
         return true
     }
 
+    /** 充值直充金币（支付成功回调入账，不走前台累积翻倍逻辑） */
+    fun grantCoins(coins: Int) {
+        if (coins <= 0) return
+        FocusApp.instance?.bankForegroundMs()
+        bankedMs += coins.toLong() * MS_PER_COIN
+    }
+
     // ---------- 卡片补给（每小时随机刷新，每张限购 1 次） ----------
 
     /**

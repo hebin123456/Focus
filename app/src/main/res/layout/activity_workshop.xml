@@ -11,12 +11,13 @@
         android:orientation="vertical">
 
         <LinearLayout
+            android:id="@+id/headerBar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
             android:paddingHorizontal="16dp"
-            android:paddingTop="28dp"
+            android:paddingTop="8dp"
             android:paddingBottom="8dp">
 
             <com.google.android.material.button.MaterialButton

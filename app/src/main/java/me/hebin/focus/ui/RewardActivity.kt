@@ -20,8 +20,10 @@ class RewardActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        EdgeToEdge.enable(this)
         binding = ActivityRewardBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        EdgeToEdge.pad(binding.root)
 
         api = StubRewardApi(CollectionRepository.get(this))
         val set = api.rewardSets().firstOrNull() ?: run { finish(); return }

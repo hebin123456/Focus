@@ -77,8 +77,10 @@ class WorkshopActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        EdgeToEdge.enable(this)
         binding = ActivityWorkshopBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        EdgeToEdge.pad(binding.root)
 
         adapter = CraftAdapter()
         binding.recyclerCraft.layoutManager = GridLayoutManager(this, 4)

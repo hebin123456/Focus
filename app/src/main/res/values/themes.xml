@@ -12,6 +12,18 @@
         <item name="android:navigationBarColor">@color/background</item>
         <item name="android:windowLightStatusBar" tools:targetApi="m">@bool/lightBars</item>
         <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">@bool/lightBars</item>
+        <!-- 弹窗统一动画：全 App 的 AlertDialog 自动继承（淡入放大入场 / 淡出缩小出场） -->
+        <item name="alertDialogTheme">@style/ThemeOverlay.Focus.AlertDialog</item>
+    </style>
+
+    <!-- 全 App 统一弹窗动画（window 层，覆盖系统默认缩放样式） -->
+    <style name="ThemeOverlay.Focus.AlertDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="android:windowAnimationStyle">@style/Animation.Focus.Dialog</item>
+    </style>
+
+    <style name="Animation.Focus.Dialog" parent="android:Animation.Dialog">
+        <item name="android:windowEnterAnimation">@anim/focus_dialog_in</item>
+        <item name="android:windowExitAnimation">@anim/focus_dialog_out</item>
     </style>
 
     <!-- 圆形头像裁剪（用法：app:shapeAppearanceOverlay="@style/CircleImage.Overlay"） -->

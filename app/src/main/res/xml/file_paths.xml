@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- FileProvider 对外只暴露 cache/share 目录（卡片分享图） -->
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path
+        name="share"
+        path="share/" />
+</paths>

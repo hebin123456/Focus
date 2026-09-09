@@ -20,6 +20,8 @@ import me.hebin.focus.databinding.ActivityShopBinding
 import me.hebin.focus.databinding.ItemBagTileBinding
 import me.hebin.focus.databinding.ItemShopCardBinding
 import me.hebin.focus.databinding.ItemShopTileBinding
+import me.hebin.focus.payment.PaymentManager
+import me.hebin.focus.payment.PaymentResult
 import me.hebin.focus.ui.view.CardView
 import java.util.Locale
 
@@ -67,13 +69,17 @@ class ShopActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        EdgeToEdge.enable(this)
         binding = ActivityShopBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        EdgeToEdge.pad(binding.root)
 
         binding.btnBack.setOnClickListener { finish() }
         binding.btnRefreshCards.setOnClickListener {
             confirmRefreshCards(ShopStore.get(this))
         }
+        // 金币充值：支付通道接入前先展示档位（PaymentManager 统一收口）
+        binding.btnBuyCoins.setOnClickListener { showCoinShop() }
     }
 
     override fun onResume() {
@@ -99,6 +105,50 @@ class ShopActivity : AppCompatActivity() {
     }
 
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+
+    // ---------- 金币充值（支付接入留口） ----------
+
+    /**
+     * 金币档位选择：支付通道已接入则直接拉起支付，未接入提示「即将开放」。
+     * 档位与支付回调统一走 PaymentManager，接入真实 SDK 时业务代码零改动。
+     */
+    private fun showCoinShop() {
+        val skus = PaymentManager.coinSkus
+        val labels = skus.map {
+            buildString {
+                append("${it.coins} 金币")
+                append("   ${it.priceLabel}")
+                it.tag?.let { t -> append("   · $t") }
+            }
+        }.toTypedArray()
+
+        val available = PaymentManager.isAvailable(this)
+        AlertDialog.Builder(this)
+            .setTitle("充值金币")
+            .setMessage(
+                if (available) "选择档位完成支付，金币立即到账"
+                else "支付通道接入中，档位抢先看：\n金币也可以靠前台挂机慢慢攒哦"
+            )
+            .setItems(labels) { d, which ->
+                d.dismiss()
+                val sku = skus[which]
+                PaymentManager.purchaseCoins(this, sku) { r ->
+                    when (r) {
+                        is PaymentResult.Success -> {
+                            Toast.makeText(
+                                this, "充值成功：+${r.sku.coins} 金币", Toast.LENGTH_SHORT
+                            ).show()
+                            refresh()
+                        }
+                        is PaymentResult.Failed ->
+                            Toast.makeText(this, r.reason, Toast.LENGTH_SHORT).show()
+                        PaymentResult.Cancelled -> Unit
+                    }
+                }
+            }
+            .setNegativeButton("取消", null)
+            .show()
+    }
 
     // ---------- 金币卡（磁铁激活时提示行显示倒计时） ----------
 

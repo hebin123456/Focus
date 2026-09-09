@@ -36,6 +36,7 @@ import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.CollectionRepository
 import me.hebin.focus.data.DailyLoginManager
 import me.hebin.focus.data.DropEngine
+import me.hebin.focus.data.Quotes
 import me.hebin.focus.data.ShopStore
 import me.hebin.focus.databinding.ActivityMainBinding
 import me.hebin.focus.databinding.ItemCrackLogBinding
@@ -63,8 +64,15 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 全屏沉浸：内容延伸到状态栏/导航栏/刘海底下，关键区域再由 insets 留白
+        EdgeToEdge.enable(this)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        EdgeToEdge.pad(binding.mainScroll)
+        EdgeToEdge.pad(binding.drawerPane)
+
+        // 每日名言：每次启动随机一条
+        setupQuote()
 
         val durations = listOf(10, 25, 45, 60, 90, 120)
         durations.forEachIndexed { i, m ->
@@ -434,6 +442,53 @@ class MainActivity : AppCompatActivity() {
         sheet.show()
     }
 
+    // ---------------- 每日名言 ----------------
+
+    /** 当前展示的名言索引（弹窗内「换一句」时用于排除当前条） */
+    private var quoteIndex = -1
+
+    /** 主页名言条：随机一条 + 点击弹出作者卡片 */
+    private fun setupQuote() {
+        val (q, idx) = Quotes.pick(this)
+        quoteIndex = idx
+        binding.textQuote.text = q.text
+        binding.quoteCard.setOnClickListener { showQuoteCard() }
+    }
+
+    /** 名言卡片弹窗：完整正文 + 作者身份，可「换一句」（同步更新主页条） */
+    private fun showQuoteCard() {
+        val view = LayoutInflater.from(this).inflate(R.layout.dialog_quote, null)
+        val textFull = view.findViewById<TextView>(R.id.textQuoteFull)
+        val textAuthor = view.findViewById<TextView>(R.id.textQuoteAuthor)
+        val textTitle = view.findViewById<TextView>(R.id.textQuoteTitle)
+        val body = view.findViewById<View>(R.id.quoteBody)
+
+        fun render(q: Quotes.Quote) {
+            textFull.text = q.text
+            textAuthor.text = q.author
+            textTitle.text = "— ${q.title}"
+        }
+        render(Quotes.all.getOrElse(quoteIndex) { Quotes.all.first() })
+
+        view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnQuoteNext)
+            .setOnClickListener {
+                val (q, idx) = Quotes.pickAnother(quoteIndex)
+                quoteIndex = idx
+                Quotes.remember(this, idx) // 下次启动避开这一条
+                render(q)
+                binding.textQuote.text = q.text
+                // 内容轻扫淡入，提示已切换
+                body.alpha = 0f
+                body.animate().alpha(1f).setDuration(220).start()
+            }
+
+        AlertDialog.Builder(this)
+            .setTitle("每日一言")
+            .setView(view)
+            .setPositiveButton("知道了") { d, _ -> d.dismiss() }
+            .show()
+    }
+
     // ---------------- 关于 ----------------
 
     private fun showAbout() {
@@ -444,7 +499,9 @@ class MainActivity : AppCompatActivity() {
 
             · 101 张萌宠卡 × 5 种稀有度，集齐图鉴可兑换奖励
             · 卡片工坊：分解随机得 3 张低级卡，3 张合成 1 张高级卡（结果随机）
-            · 金币与道具商店：App 前台挂机攒金币，道具敬请期待
+            · 金币与道具商店：App 前台挂机攒金币，也支持充值（支付通道接入中）
+            · 图鉴卡片一键生成分享图，晒到其他 App
+            · 每日一言：主页名人名言每次启动随机换
             · 白噪音：雨声 / 海浪 / 炉火 / 白噪程序化合成，专注时可选可调音量
             · 深度专注：全屏沉浸 + 屏幕固定，完成金币翻倍
             · 自定义图标：用收集到的萌宠当桌面图标，样式跟随稀有度
@@ -558,12 +615,16 @@ class MainActivity : AppCompatActivity() {
             .setPositiveButton("确认") { d, _ -> d.dismiss() }
             .show()
 
-        // 收藏里的卡都是已持有的，直接提供「设为自定义图标」入口
+        // 收藏里的卡都是已持有的，提供「设为自定义图标」与「分享」入口
         view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnSetAsIcon).apply {
             isVisible = true
             setOnClickListener {
                 IconPicker.confirmCard(this@MainActivity, cardId, rarity) { dialog.dismiss() }
             }
+        }
+        view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnShareCard).apply {
+            isVisible = true
+            setOnClickListener { ShareCard.share(this@MainActivity, cardId, rarity) }
         }
     }
 
@@ -597,7 +658,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
         builder.show()
+
+        // 刚收服的卡，随手晒一张
+        view.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnShareCard).apply {
+            isVisible = true
+            setOnClickListener { ShareCard.share(this@MainActivity, drop.cardId, drop.rarity) }
+        }
     }
 
     /** 每日登录奖励展示 */

@@ -5617,6 +5617,17 @@
             </intent-filter>
         </activity-alias>
         <!-- ICON_ALIASES_END -->
+
+        <!-- 卡片分享图对外授权（仅暴露 cache/share 目录，FileProvider） -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>
