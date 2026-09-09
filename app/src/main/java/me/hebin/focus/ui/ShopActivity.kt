@@ -16,6 +16,8 @@ import me.hebin.focus.data.ItemCatalog
 import me.hebin.focus.data.ShopCardEntry
 import me.hebin.focus.data.ShopItem
 import me.hebin.focus.data.ShopStore
+import me.hebin.focus.ads.AdResult
+import me.hebin.focus.ads.AdRewardManager
 import me.hebin.focus.databinding.ActivityShopBinding
 import me.hebin.focus.databinding.ItemBagTileBinding
 import me.hebin.focus.databinding.ItemShopCardBinding
@@ -28,7 +30,8 @@ import java.util.Locale
 /**
  * 道具商店：金币余额 + 卡片补给（每小时随机刷新，每张限购 1 次，可花 30 金币立即换一批）
  * + 道具网格（3 列竖版小卡）+ 我的背包（点击查看，磁铁在背包手动激活）。
- * 金币在 App 前台时线性累积（每满 1 分钟 +1）；所有购买均需二次确认。
+ * 金币在 App 前台时线性累积（每满 1 分钟 +1）；也可充值（模拟支付）或每日看 2 次广告各 +10。
+ * 所有购买均需二次确认。
  */
 class ShopActivity : AppCompatActivity() {
 
@@ -80,6 +83,8 @@ class ShopActivity : AppCompatActivity() {
         }
         // 金币充值：支付通道接入前先展示档位（PaymentManager 统一收口）
         binding.btnBuyCoins.setOnClickListener { showCoinShop() }
+        // 每日看广告领金币（当前模拟激励视频，AdRewardManager 统一收口）
+        binding.btnWatchAd.setOnClickListener { watchAd() }
     }
 
     override fun onResume() {
@@ -150,12 +155,47 @@ class ShopActivity : AppCompatActivity() {
             .show()
     }
 
+    // ---------- 每日看广告（广告接入留口） ----------
+
+    /**
+     * 看激励广告 +10 金币，每日 2 次（跨天自动重置）。
+     * 次数限制与发奖统一在 AdRewardManager，接入真实 SDK 时业务代码零改动。
+     */
+    private fun watchAd() {
+        AdRewardManager.showRewardedAd(this) { r ->
+            when (r) {
+                is AdResult.Rewarded -> {
+                    Toast.makeText(
+                        this,
+                        "🎬 广告奖励 +${AdRewardManager.REWARD_COINS} 金币",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    refresh()
+                }
+                is AdResult.Failed ->
+                    Toast.makeText(this, r.reason, Toast.LENGTH_SHORT).show()
+                AdResult.Cancelled ->
+                    Toast.makeText(this, "看完广告才能领奖励哦", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     // ---------- 金币卡（磁铁激活时提示行显示倒计时） ----------
 
     private fun renderCoinCard(shop: ShopStore) {
         binding.textCoinCount.text = shop.currentCoins().toString()
         binding.progressNextCoin.progress = (shop.nextCoinProgress() * 100).toInt()
         binding.textRateHint.text = magnetRemainText() ?: "App 在前台时每满 1 分钟 +1 金币"
+        renderAdButton()
+    }
+
+    /** 广告按钮状态：剩余次数 / 今日已看完 */
+    private fun renderAdButton() {
+        val left = AdRewardManager.leftToday(this)
+        binding.btnWatchAd.isEnabled = left > 0
+        binding.btnWatchAd.text =
+            if (left > 0) "🎬 广告 +${AdRewardManager.REWARD_COINS}（剩 $left）"
+            else "今日已看完"
     }
 
     private fun magnetRemainText(): String? {

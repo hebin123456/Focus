@@ -4,58 +4,42 @@ import android.app.Activity
 import android.content.Context
 
 /**
- * 广告 SDK 抽象层：统一广告位、结果回调，频控见 [AdManager]。
+ * 激励视频 SDK 抽象层：奖励广告的展示与结果回调，统一走 [AdRewardManager]。
  *
- * 现状：[AdManager] 默认挂 [StubAdApi]（本地模拟，无任何 SDK 依赖），
- * 专注完成弹窗已接入「看广告补领一张」跑通完整闭环。
+ * 现状：默认挂 [StubAdApi]（本地 3 秒模拟广告，看完即发奖），
+ * 商店金币卡已露出「看广告 +10」入口，每日 2 次。
  *
- * 接入真实 SDK（穿山甲 GroMore / AdMob / 优量汇等）时：
+ * 接入真实广告（穿山甲 / 优量汇 GroMore / AdMob 等）时：
  *  1. 新建 XxxAdApi 实现 [AdApi]；
- *  2. 在 Application 里调用 `AdManager.setProvider(XxxAdApi())`；
- *  3. 广告位与频控策略集中在 [AdPlacement]，业务代码无需改动。
- * 详见 docs/广告接入指南.md
+ *  2. 在 Application 里调用 `AdRewardManager.setProvider(XxxAdApi())`；
+ *  3. 每日次数上限与单次奖励额度在 [AdRewardManager] 统一管理，SDK 层不要自行入账。
  */
-
-/** 广告位定义（全屏类；横幅需要 View 容器，先占位） */
-enum class AdPlacement(
-    val label: String,
-    /** 两次展示的最小间隔（分钟） */
-    val cooldownMinutes: Int,
-    /** 每日展示次数上限 */
-    val dailyLimit: Int
-) {
-    REWARD_EXTRA_CARD("激励视频·补领一张卡", cooldownMinutes = 30, dailyLimit = 5),
-    INTERSTITIAL_SESSION_END("插屏·专注结束", cooldownMinutes = 60, dailyLimit = 3),
-    SPLASH("开屏", cooldownMinutes = 0, dailyLimit = 1),
-    HOME_BANNER("横幅·主页（预留，未启用）", cooldownMinutes = 0, dailyLimit = Int.MAX_VALUE)
-}
-
-/** 广告展示结果（回调保证在主线程） */
-sealed class AdResult {
-    /** 激励视频完整看完，可发奖 */
-    data object Rewarded : AdResult()
-
-    /** 中途关闭/跳过，无奖励 */
-    data object ClosedEarly : AdResult()
-
-    /** 拉取或展示失败 */
-    data class Failed(val reason: String) : AdResult()
-}
-
-/** 广告能力接口：真实 SDK 与本地模拟都实现这一套 */
 interface AdApi {
+
     /** Provider 名称（调试/日志用） */
     val name: String
 
     /** SDK 初始化（Application 上下文） */
     fun initialize(context: Context)
 
-    /** 该广告位是否有 ready 的广告缓存 */
-    fun isReady(placement: AdPlacement): Boolean
+    /** 广告通道是否可用（未填充 / 未配置时 UI 层提示并隐藏入口） */
+    fun isAvailable(): Boolean
 
-    /** 预加载 */
-    fun load(placement: AdPlacement)
+    /**
+     * 展示激励视频；结果通过 onResult 回调（保证主线程）。
+     * 只负责「播完没播完」，发奖与每日次数由 [AdRewardManager] 统一处理。
+     */
+    fun show(activity: Activity, onResult: (AdResult) -> Unit)
+}
 
-    /** 展示；结果通过 onResult 回调（主线程） */
-    fun show(activity: Activity, placement: AdPlacement, onResult: (AdResult) -> Unit)
+/** 广告结果 */
+sealed class AdResult {
+    /** 完整看完（由 AdRewardManager 发奖并计数） */
+    data object Rewarded : AdResult()
+
+    /** 失败（无填充 / 今日次数用完等） */
+    data class Failed(val reason: String) : AdResult()
+
+    /** 用户中途退出（未看完，不发奖） */
+    data object Cancelled : AdResult()
 }

@@ -6,8 +6,8 @@ import android.content.Context
 /**
  * 支付 SDK 抽象层：金币充值档位 + 结果回调，统一走 [PaymentManager]。
  *
- * 现状：[PaymentManager] 默认挂 [StubPaymentApi]（未接入任何 SDK），
- * 商店金币卡已露出「充值」入口，选择档位后会提示「支付通道接入中」。
+ * 现状：[PaymentManager] 默认挂 [StubPaymentApi]（模拟收银台，点「确认支付」必成功），
+ * 档位 68 / 188 / 388 / 688 金币，购买即入账。
  *
  * 接入真实支付（微信 / 支付宝 / 华为 IAP 等）时：
  *  1. 新建 XxxPaymentApi 实现 [PaymentApi]；

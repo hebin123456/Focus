@@ -129,17 +129,38 @@
                             android:progressTint="@color/coinText" />
                     </LinearLayout>
 
-                    <!-- 金币充值入口（支付通道接入中，先留档位口子） -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnBuyCoins"
-                        style="@style/Widget.Material3.Button.TonalButton"
+                    <!-- 金币充值入口 + 每日看广告入口（广告 SDK 接入中，先模拟） -->
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
-                        android:minWidth="0dp"
-                        android:text="＋充值"
-                        android:textSize="13sp"
-                        app:cornerRadius="12dp" />
+                        android:orientation="vertical">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnBuyCoins"
+                            style="@style/Widget.Material3.Button.TonalButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:minWidth="0dp"
+                            android:text="＋充值"
+                            android:textSize="13sp"
+                            app:cornerRadius="12dp" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnWatchAd"
+                            style="@style/Widget.Material3.Button.TextButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center_horizontal"
+                            android:layout_marginTop="2dp"
+                            android:minWidth="0dp"
+                            android:minHeight="0dp"
+                            android:paddingHorizontal="10dp"
+                            android:text="🎬 广告 +10"
+                            android:textColor="@color/coinText"
+                            android:textSize="12sp"
+                            app:cornerRadius="12dp" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

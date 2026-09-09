@@ -49,9 +49,9 @@ object PaymentManager {
 
     /** 金币档位清单（UI 展示用；id 对齐商户后台商品） */
     val coinSkus: List<CoinSku> = listOf(
-        CoinSku("coins_60", 60, "¥1"),
-        CoinSku("coins_320", 320, "¥6", tag = "超值"),
-        CoinSku("coins_1100", 1100, "¥18"),
-        CoinSku("coins_3200", 3200, "¥48", tag = "最划算")
+        CoinSku("coins_68", 68, "¥6"),
+        CoinSku("coins_188", 188, "¥18", tag = "超值"),
+        CoinSku("coins_388", 388, "¥30"),
+        CoinSku("coins_688", 688, "¥48", tag = "最划算")
     )
 }
