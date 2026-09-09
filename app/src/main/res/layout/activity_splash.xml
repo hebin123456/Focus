@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 开屏页：所有桌面图标入口统一先进这里，3 秒倒计时（可跳过）后进主页。
+     splashAdFrame = 开屏广告容器：未接 SDK 时显示品牌占位图（四宫格萌宠 + slogan），
+     接入后由 SplashAdManager.loadView() 返回的 View 铺满替换。 -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background">
+
+    <!-- 上部：开屏广告 / 品牌占位 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:id="@+id/splashAdFrame"
+            android:layout_width="match_parent"
+            android:layout_height="340dp"
+            android:layout_marginHorizontal="28dp"
+            android:layout_marginTop="64dp"
+            android:background="@drawable/bg_splash_ad">
+
+            <!-- 品牌占位（SDK 接入后被移除/覆盖） -->
+            <LinearLayout
+                android:id="@+id/splashBrandPlaceholder"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:padding="18dp">
+
+                <GridLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:columnCount="2"
+                    android:orientation="horizontal">
+
+                    <ImageView
+                        android:layout_width="86dp"
+                        android:layout_height="86dp"
+                        android:layout_margin="6dp"
+                        android:importantForAccessibility="no"
+                        android:src="@mipmap/cardart_001" />
+
+                    <ImageView
+                        android:layout_width="86dp"
+                        android:layout_height="86dp"
+                        android:layout_margin="6dp"
+                        android:importantForAccessibility="no"
+                        android:src="@mipmap/cardart_013" />
+
+                    <ImageView
+                        android:layout_width="86dp"
+                        android:layout_height="86dp"
+                        android:layout_margin="6dp"
+                        android:importantForAccessibility="no"
+                        android:src="@mipmap/cardart_025" />
+
+                    <ImageView
+                        android:layout_width="86dp"
+                        android:layout_height="86dp"
+                        android:layout_margin="6dp"
+                        android:importantForAccessibility="no"
+                        android:src="@mipmap/cardart_048" />
+                </GridLayout>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:text="专注每一分钟 · 收集每一只萌宠"
+                    android:textColor="@color/textSecondary"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- 广告位角标（仅占位模式显示；SDK 接入后隐藏） -->
+            <TextView
+                android:id="@+id/splashAdBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="bottom|end"
+                android:layout_margin="10dp"
+                android:background="@drawable/bg_splash_badge"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"
+                android:text="开屏广告位"
+                android:textColor="@color/textSecondary"
+                android:textSize="9sp" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- 右上角：倒计时跳过 -->
+    <TextView
+        android:id="@+id/splashBtnSkip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="20dp"
+        android:background="@drawable/bg_splash_badge"
+        android:clickable="true"
+        android:focusable="true"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="6dp"
+        android:text="跳过 3"
+        android:textColor="@color/textSecondary"
+        android:textSize="13sp" />
+
+    <!-- 底部：Logo + 版本 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingBottom="52dp">
+
+        <ImageView
+            android:layout_width="56dp"
+            android:layout_height="56dp"
+            android:importantForAccessibility="no"
+            android:src="@mipmap/ic_launcher_foreground" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Focus"
+            android:textColor="@color/textPrimary"
+            android:textSize="20sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/splashTextVersion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="本地资料版"
+            android:textColor="@color/textSecondary"
+            android:textSize="11sp" />
+    </LinearLayout>
+</FrameLayout>

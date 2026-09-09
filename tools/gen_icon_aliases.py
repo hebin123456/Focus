@@ -122,7 +122,7 @@ ALIAS_TMPL = (
     '            android:enabled="%s"\n'
     '            android:exported="true"\n'
     '            android:icon="@mipmap/%s"\n'
-    '            android:targetActivity=".ui.MainActivity">\n'
+    '            android:targetActivity=".ui.SplashActivity">\n'
     '            <intent-filter>\n'
     '                <action android:name="android.intent.action.MAIN" />\n'
     '                <category android:name="android.intent.category.LAUNCHER" />\n'

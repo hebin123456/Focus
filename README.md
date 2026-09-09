@@ -22,14 +22,15 @@
 | 统计跳转 | 主页「已集图鉴」点击直达图鉴页；「累计专注」点击直达专注统计页 |
 | 专注统计 | 年 / 月 / 日三级柱状图（各月 → 每日 → 按小时，点击柱子逐级下钻，可跨年/月/日翻页）；日视图展示当天收集到的卡片与获得时刻；柱状图为 Canvas 自绘零依赖 |
 | 道具商店 | 金币购买道具放入背包；道具清单暂空（`ItemCatalog` 一行补一条即可上线） |
-| 金币充值 | 金币数字旁小加号入口 → 底部档位面板（68/188/388/688 金币，¥6~¥48，角标区分超值档）；当前为模拟收银台（点确认必成功），`PaymentApi`/`PaymentManager` 统一收口，接微信/支付宝/IAP 只需 setProvider 替换，业务代码零改动 |
+| 金币充值 | 金币数字右侧主色圆形加号（独立一列不挤数字，数字自适应字号 99999 也不溢出）→ 底部档位面板（68/188/388/688 金币，¥6~¥48，角标区分超值档）；当前为模拟收银台（点确认必成功），`PaymentApi`/`PaymentManager` 统一收口，接微信/支付宝/IAP 只需 setProvider 替换，业务代码零改动 |
+| 开屏页 | 所有桌面图标统一先进开屏页（3 秒倒计时，右上角随时跳过）再进主页；广告容器已留好：`SplashAdApi`/`SplashAdManager` provider 模式对齐 `AdApi`，未接 SDK 时展示品牌占位图（四宫格萌宠 + slogan + 广告位角标），接入后 View 铺满替换 |
 | 自定义图标 | 从已收集的图鉴卡里选一张当桌面图标，样式跟随该卡稀有度（普卡朴素 → 钻石青色辉光圈）；点击先弹二次确认，卡上左右滑动切换稀有度（仅已收集的），支持稀有度 + 类别筛选；activity-alias 预置 101×5+1 共 506 个别名运行时切换，Android 8.0+ |
 | 每日登录 | 每天首次打开送随机卡；联网校验时间防改本地时间；连续登录越久卡越好（第 1 天≈10 分钟档，第 23 天起封顶 120 分钟档） |
 | 成就系统 | 22 个成就 × 点数（总计 560 点）：连续登录天数、集齐普/铜/银/金/钻各 101 张、专注时长/次数、深度专注次数、首次金卡/钻石卡 |
 | 徽章系统 | 点数达 30/80/150/250 解锁青铜/白银/黄金/钻石徽章，可佩戴展示在主页标题旁 |
 | 侧边栏 | 头像 + 昵称 + 佩戴勋章的抽屉导航；本地头像（相册选图 / 6 色预置生成）；个人资料、成就与勋章、图鉴、兑换、关于 |
 | 收藏展示 | 主页"开始专注"下方横滑展示最近获得的卡片，点击查看详情；空状态引导 |
-| 广告预留 | `AdApi` 抽象接口 + `AdManager` 频控（冷却/每日上限，自然日重置）；默认 Stub 模拟实现；专注完成弹窗已跑通"看广告再领 1 张"闭环，接真实 SDK 见 `docs/广告接入指南.md` |
+| 广告预留 | `AdApi` 抽象接口 + `AdRewardManager` 频控（冷却/每日上限，自然日重置）；默认 Stub 模拟实现；专注完成弹窗已跑通"看广告再领 1 张"闭环；开屏广告走 `SplashAdApi`/`SplashAdManager`（同 provider 模式），接真实 SDK 见 `docs/广告接入指南.md` |
 | 奖励兑换 | 预留 `RewardApi` 接口，集齐 101 张可兑换奖品（当前为本地 Stub 实现） |
 
 ### 每日登录防作弊设计
@@ -65,14 +66,17 @@ app/src/main/java/me/hebin/focus/
 ├── session/
 │   └── FocusSessionManager.kt  # 专注会话状态机（进程级单例）
 ├── ads/
-│   ├── AdApi.kt                # 广告位定义 / 结果回调 / SDK 抽象接口
-│   ├── AdManager.kt            # 广告分发 + 频控（冷却/日限，自然日重置）
-│   └── StubAdApi.kt            # 本地模拟实现（无 SDK 依赖）
+│   ├── AdApi.kt                # 激励视频 SDK 抽象接口（结果回调）
+│   ├── AdRewardManager.kt      # 激励广告分发 + 发奖 + 每日频控（自然日重置）
+│   ├── StubAdApi.kt            # 本地模拟实现（无 SDK 依赖）
+│   ├── SplashAdApi.kt          # 开屏广告 SDK 抽象接口（返回广告 View）
+│   └── SplashAdManager.kt      # 开屏广告分发（默认无 SDK → 品牌图兜底）
 ├── payment/
 │   ├── PaymentApi.kt           # 充值档位(CoinSku) + 结果回调 + SDK 抽象接口
 │   ├── PaymentManager.kt       # 支付分发 + 统一入账（成功 → ShopStore.grantCoins）
 │   └── StubPaymentApi.kt       # 模拟收银台（无 SDK 依赖，接真实支付替换本类）
 └── ui/
+    ├── SplashActivity.kt       # 开屏页：3 秒倒计时 + 广告容器（品牌图兜底）
     ├── MainActivity.kt         # 主页：抽屉导航 + 统计 + 金币跳动 + 每日领卡
     ├── StatsActivity.kt        # 专注统计页：年/月/日柱状图下钻 + 当天收集卡片
     ├── FocusActivity.kt        # 专注页：计时/剪影/碎裂/翻卡
@@ -109,7 +113,7 @@ GitHub Actions 已配置（`.github/workflows/android.yml`）：push 到 master 
 - **进程被杀兜底**：掉落结果先写 `pendingDrop` 再广播状态，主页 `onStart` 时恢复展示
 - **卡面美术**：101 张 Q 版萌宠插画（cut_square 紧裁版）转 512px WebP（q85，共约 2.3MB）放入 `assets/cards/`；`CardView` Canvas 自绘稀有度底色/边框/辉光 + 图片 + 名称，`CardArt` 做 LruCache（1/8 堆内存）+ 单线程异步解码，未收集态用 ColorMatrix 染成暗剪影（保留轮廓悬念）
 - **自适应图标**：focus_B 涟漪方案；前景为不透明渐变底 + 缩放至 66dp 安全区（108dp 画布）的涟漪，旧版（< Android 8）直接用 1024 成品缩放
-- **自定义图标（activity-alias）**：清单预置 `.icon.standard`（默认涟漪）+ `.icon.aNNN_R`（101 卡 × 5 稀有度）共 506 个别名，均挂 MAIN/LAUNCHER 指向 MainActivity，卡片别名默认禁用；`IconSwitcher` 先启用新别名再禁用旧别名（避免桌面入口真空），`DONT_KILL_APP` 不杀进程；图标资源由 `tools/gen_icon_aliases.py` 幂等生成（稀有度渐变底 + 描边圈 + 卡面 layer-list，约 1.3MB）
+- **自定义图标（activity-alias）**：清单预置 `.icon.standard`（默认涟漪）+ `.icon.aNNN_R`（101 卡 × 5 稀有度）共 506 个别名，均挂 MAIN/LAUNCHER 指向 SplashActivity（开屏 → 主页），卡片别名默认禁用；`IconSwitcher` 先启用新别名再禁用旧别名（避免桌面入口真空），`DONT_KILL_APP` 不杀进程；图标资源由 `tools/gen_icon_aliases.py` 幂等生成（稀有度渐变底 + 描边圈 + 卡面 layer-list，约 1.3MB）
 - **金币累积**：`FocusApp` 用 ActivityLifecycleCallbacks 统计前台毫秒（elapsedRealtime 单调时钟），前台期间每 30 秒入账 `ShopStore`，最后一个 Activity onStop 时结算；熄屏会触发 onStop 自动暂停，符合"前台开着才攒"
 
 ## 后续路线
@@ -122,6 +126,7 @@ GitHub Actions 已配置（`.github/workflows/android.yml`）：push 到 master 
 - [ ] 专注计时防作弊（elapsedRealtime 替代 currentTimeMillis + 网络校验）
 - [ ] 后端接入：账号系统、`RewardApi` 真实实现、防作弊校验
 - [ ] 真实充值通道：微信 / 支付宝 / 应用商店 IAP 替换 `StubPaymentApi`（档位 id 对齐商户后台即可）
+- [ ] 真实广告 SDK：激励视频替换 `StubAdApi`，开屏实现 `SplashAdApi` 后 `SplashAdManager.setProvider(...)`（穿山甲 / 优量汇 / AdMob 均可）
 - [x] 白噪音 / 深度专注模式
 - [x] 屏幕固定 + 浮窗遮挡检测 + 碎裂记录（v0.8.0）
 - [ ] 集换社交（与好友交换重复卡、徽章展示互动）

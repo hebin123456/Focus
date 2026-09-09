@@ -67,95 +67,105 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
+                    android:orientation="vertical"
                     android:padding="16dp">
 
-                    <ImageView
-                        android:layout_width="44dp"
-                        android:layout_height="44dp"
-                        android:importantForAccessibility="no"
-                        android:src="@drawable/ic_coin" />
-
+                    <!-- 上排：金币图标 + 数字列（独占剩余宽度，99999 也不挤） + 充值加号独立成列 -->
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="14dp"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:layout_width="40dp"
+                            android:layout_height="40dp"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_coin" />
 
                         <LinearLayout
-                            android:layout_width="wrap_content"
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:gravity="bottom"
-                            android:orientation="horizontal">
+                            android:layout_marginStart="14dp"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/textCoinCount"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:maxLines="1"
+                                    android:text="0"
+                                    android:textColor="@color/coinText"
+                                    android:textSize="26sp"
+                                    android:textStyle="bold"
+                                    app:autoSizeMaxTextSize="26sp"
+                                    app:autoSizeMinTextSize="14sp"
+                                    app:autoSizeStepGranularity="1sp"
+                                    app:autoSizeTextType="uniform" />
+
+                                <TextView
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginStart="6dp"
+                                    android:text="金币"
+                                    android:textColor="@color/textSecondary"
+                                    android:textSize="13sp" />
+                            </LinearLayout>
+
+                            <ProgressBar
+                                android:id="@+id/progressNextCoin"
+                                style="?android:attr/progressBarStyleHorizontal"
+                                android:layout_width="match_parent"
+                                android:layout_height="5dp"
+                                android:layout_marginTop="8dp"
+                                android:max="100"
+                                android:progress="0"
+                                android:progressBackgroundTint="@color/track"
+                                android:progressTint="@color/coinText" />
 
                             <TextView
-                                android:id="@+id/textCoinCount"
+                                android:id="@+id/textRateHint"
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="0"
-                                android:textColor="@color/coinText"
-                                android:textSize="26sp"
-                                android:textStyle="bold" />
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:layout_marginStart="6dp"
-                                android:text="金币"
+                                android:layout_marginTop="4dp"
+                                android:text="App 在前台时每满 1 分钟 +1 金币"
                                 android:textColor="@color/textSecondary"
-                                android:textSize="13sp" />
-
-                            <!-- 充值入口：小加号（替代原「＋充值」大按钮，不再挤占数字空间） -->
-                            <ImageButton
-                                android:id="@+id/btnBuyCoins"
-                                android:layout_width="22dp"
-                                android:layout_height="22dp"
-                                android:layout_gravity="center_vertical"
-                                android:layout_marginStart="10dp"
-                                android:background="?attr/selectableItemBackgroundBorderless"
-                                android:contentDescription="充值金币"
-                                android:src="@drawable/ic_coin_add"
-                                app:tint="@color/coinText" />
+                                android:textSize="11sp" />
                         </LinearLayout>
 
-                        <TextView
-                            android:id="@+id/textRateHint"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="2dp"
-                            android:text="App 在前台时每满 1 分钟 +1 金币"
-                            android:textColor="@color/textSecondary"
-                            android:textSize="11sp" />
-
-                        <ProgressBar
-                            android:id="@+id/progressNextCoin"
-                            style="?android:attr/progressBarStyleHorizontal"
-                            android:layout_width="match_parent"
-                            android:layout_height="5dp"
-                            android:layout_marginTop="8dp"
-                            android:max="100"
-                            android:progress="0"
-                            android:progressBackgroundTint="@color/track"
-                            android:progressTint="@color/coinText" />
+                        <!-- 充值入口：主色圆形加号，独立一列，不再挤压数字 -->
+                        <ImageButton
+                            android:id="@+id/btnBuyCoins"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:layout_marginStart="10dp"
+                            android:background="@drawable/bg_coin_plus"
+                            android:contentDescription="充值金币"
+                            android:src="@drawable/ic_coin_add"
+                            app:tint="@color/onPrimary" />
                     </LinearLayout>
 
-                    <!-- 每日看广告入口（广告 SDK 接入中，先模拟）；充值入口已缩为金币旁的小加号 -->
+                    <!-- 下排：看广告赚金币（广告 SDK 接入中，先模拟）通栏入口 -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnWatchAd"
-                        style="@style/Widget.Material3.Button.TextButton"
-                        android:layout_width="wrap_content"
+                        style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="center_vertical"
-                        android:layout_marginStart="10dp"
-                        android:minWidth="0dp"
-                        android:minHeight="0dp"
-                        android:paddingHorizontal="10dp"
-                        android:text="🎬 广告 +10"
-                        android:textColor="@color/coinText"
-                        android:textSize="12sp"
-                        app:cornerRadius="12dp" />
+                        android:layout_marginTop="14dp"
+                        android:insetTop="0dp"
+                        android:insetBottom="0dp"
+                        android:minHeight="38dp"
+                        android:text="🎬 看视频广告 +10 金币"
+                        android:textSize="13sp"
+                        app:cornerRadius="12dp"
+                        app:iconGravity="textStart" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

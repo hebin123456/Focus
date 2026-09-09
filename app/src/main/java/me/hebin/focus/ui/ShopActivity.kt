@@ -206,13 +206,13 @@ class ShopActivity : AppCompatActivity() {
         renderAdButton()
     }
 
-    /** 广告按钮状态：剩余次数 / 今日已看完 */
+    /** 广告按钮状态（通栏入口）：剩余次数 / 今日已看完 */
     private fun renderAdButton() {
         val left = AdRewardManager.leftToday(this)
         binding.btnWatchAd.isEnabled = left > 0
         binding.btnWatchAd.text =
-            if (left > 0) "🎬 广告 +${AdRewardManager.REWARD_COINS}（剩 $left）"
-            else "今日已看完"
+            if (left > 0) "🎬 看视频广告 +${AdRewardManager.REWARD_COINS} 金币（今日剩 $left 次）"
+            else "今日 ${AdRewardManager.DAILY_LIMIT} 次广告已看完，明天再来"
     }
 
     private fun magnetRemainText(): String? {
