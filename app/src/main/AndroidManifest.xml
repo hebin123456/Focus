@@ -48,6 +48,10 @@
             android:name=".ui.AchievementActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".ui.StatsActivity"
+            android:exported="false" />
+
         <!-- ICON_ALIASES_START -->
         <!-- 默认桌面入口（涟漪图标）；卡片别名默认禁用，由 IconSwitcher 运行时切换 -->
         <activity-alias

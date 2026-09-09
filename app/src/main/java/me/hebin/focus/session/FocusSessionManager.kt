@@ -153,7 +153,9 @@ object FocusSessionManager {
                 extra = DropEngine.roll(minutes)
                     .also { repo.addCard(it.cardId, it.rarity) }
             }
-            repo.addFocusMinutes(minutes)
+            // 会话日志：记录开始时刻 + 深度模式，统计图表按此聚合
+            val startedAt = (state as State.Focusing).startedAt
+            repo.addFocusMinutes(minutes, startedAt, deep)
             repo.addFinishedSession()
             if (deep) {
                 repo.addDeepSession()

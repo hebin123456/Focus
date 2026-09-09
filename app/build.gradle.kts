@@ -15,8 +15,8 @@ android {
         applicationId = "me.hebin.focus"
         minSdk = 24
         targetSdk = 34
-        versionCode = 12
-        versionName = "0.9.0"
+        versionCode = 13
+        versionName = "0.9.1"
         buildConfigField("boolean", "DEBUG_TOOLS", focusDebugTools.toString())
     }
 

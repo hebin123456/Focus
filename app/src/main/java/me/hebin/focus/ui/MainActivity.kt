@@ -134,6 +134,9 @@ class MainActivity : AppCompatActivity() {
         binding.statCardCollected.setOnClickListener {
             startActivity(Intent(this, CollectionActivity::class.java))
         }
+        binding.statCardMinutes.setOnClickListener {
+            startActivity(Intent(this, StatsActivity::class.java))
+        }
         binding.statCardCracked.setOnClickListener { showCrackHistory() }
         binding.coinChip.setOnClickListener { startActivity(Intent(this, ShopActivity::class.java)) }
         binding.navReward.setOnClickListener {

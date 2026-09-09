@@ -19,7 +19,8 @@
 | 屏幕固定 | 深度专注自动请求 Screen Pinning（startLockTask）：Home / 多任务 / 返回全部失效，长按返回才可退出，系统确认框期间不误判离开 |
 | 浮窗检测 | onPause 后 900ms 仍处于「已暂停未停止」（悬浮窗 / 分屏 / 画中画遮挡特征）→ 判为分心碎裂；下拉通知栏、音量条不触发 onPause 不误伤 |
 | 碎裂记录 | 每次碎裂记入本地历史（原因 + 坚持时长 + 完成度，上限 500 条）；主页「碎裂次数」点击查看，按时间倒序、每页 20 条翻页 |
-| 统计跳转 | 主页「已集图鉴」点击直达图鉴页；「累计专注」保留纯展示 |
+| 统计跳转 | 主页「已集图鉴」点击直达图鉴页；「累计专注」点击直达专注统计页 |
+| 专注统计 | 年 / 月 / 日三级柱状图（各月 → 每日 → 按小时，点击柱子逐级下钻，可跨年/月/日翻页）；日视图展示当天收集到的卡片与获得时刻；柱状图为 Canvas 自绘零依赖 |
 | 道具商店 | 金币购买道具放入背包；道具清单暂空（`ItemCatalog` 一行补一条即可上线） |
 | 自定义图标 | 从已收集的图鉴卡里选一张当桌面图标，样式跟随该卡稀有度（普卡朴素 → 钻石青色辉光圈）；点击先弹二次确认，卡上左右滑动切换稀有度（仅已收集的），支持稀有度 + 类别筛选；activity-alias 预置 101×5+1 共 506 个别名运行时切换，Android 8.0+ |
 | 每日登录 | 每天首次打开送随机卡；联网校验时间防改本地时间；连续登录越久卡越好（第 1 天≈10 分钟档，第 23 天起封顶 120 分钟档） |
@@ -54,7 +55,8 @@ app/src/main/java/me/hebin/focus/
 │   ├── DropEngine.kt           # 掉落概率引擎（专注掉卡 + 每日登录）
 │   ├── CraftEngine.kt          # 工坊引擎：分解/合成（随机产物）
 │   ├── ShopStore.kt            # 金币 + 背包 + 道具清单（ItemCatalog）
-│   ├── CollectionRepository.kt # 图鉴/统计/每日登录/成就持久化
+│   ├── CollectionRepository.kt # 图鉴/统计/每日登录/成就持久化（含专注会话日志 + 卡片获得日志）
+│   ├── FocusStats.kt           # 专注统计聚合（年/月/日/小时分钟桶 + 按天卡片过滤）
 │   ├── DailyLoginManager.kt    # 每日登录：联网时间校验 + streak + 发卡
 │   ├── Achievements.kt         # 成就定义 / 点数 / 徽章 / 解锁检查
 │   ├── AvatarStore.kt          # 本地头像：相册选图(SAF) / 预置色板生成 / 渲染
@@ -67,6 +69,7 @@ app/src/main/java/me/hebin/focus/
 │   └── StubAdApi.kt            # 本地模拟实现（无 SDK 依赖）
 └── ui/
     ├── MainActivity.kt         # 主页：抽屉导航 + 统计 + 金币跳动 + 每日领卡
+    ├── StatsActivity.kt        # 专注统计页：年/月/日柱状图下钻 + 当天收集卡片
     ├── FocusActivity.kt        # 专注页：计时/剪影/碎裂/翻卡
     ├── CollectionActivity.kt   # 图鉴页
     ├── CardGridAdapter.kt      # 图鉴网格适配器
@@ -78,7 +81,8 @@ app/src/main/java/me/hebin/focus/
     ├── RewardActivity.kt       # 兑换页
     └── view/
         ├── CardView.kt         # 卡片自绘控件（萌宠图 + 名称 / 未收集剪影 / 生成中剪影）
-        └── CardArt.kt          # 卡面图加载（assets → LruCache，异步解码）
+        ├── CardArt.kt          # 卡面图加载（assets → LruCache，异步解码）
+        └── BarChartView.kt     # 柱状图自绘控件（专注统计页，入场动画 + 点击下钻）
 
 tools/gen_icon_aliases.py       # 生成 506 个图标别名资源 + 清单（可重复运行）
 ```

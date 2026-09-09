@@ -164,9 +164,14 @@
                     app:strokeColor="@color/track"
                     app:strokeWidth="1dp">
 
+                    <!-- 可点击：跳转专注统计（年/月/日柱状图 + 当日收集卡片） -->
                     <LinearLayout
+                        android:id="@+id/statCardMinutes"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:background="?attr/selectableItemBackground"
+                        android:clickable="true"
+                        android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
                         android:padding="14dp">
@@ -844,7 +849,7 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:paddingBottom="16dp"
-            android:text="Focus v0.9.0 · 本地资料版"
+            android:text="Focus v0.9.1 · 本地资料版"
             android:textColor="@color/textSecondary"
             android:textSize="11sp" />
     </LinearLayout>

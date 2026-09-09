@@ -14,6 +14,8 @@ import org.json.JSONObject
  *  sessions    : 完成的专注次数
  *  cracked     : 碎裂次数
  *  pending     : 后台完成但用户还没看过结果的掉落（进程被杀后恢复用）
+ *  sessionLog  : [{st: 开始毫秒, m: 分钟, d: 深度}, ...] 完成的专注记录（统计图表用，上限 2000 条）
+ *  cardLog     : [{ts: 毫秒, id: 编号, r: 稀有度}, ...] 获得卡片记录（"某天集了什么卡"用，上限 2000 条）
  */
 class CollectionRepository private constructor(context: Context) {
 
@@ -61,6 +63,7 @@ class CollectionRepository private constructor(context: Context) {
         prefs.edit().putString(KEY_CARDS, root.toString()).apply()
         cardsCache = null
         pushRecent(cardId, rarity)
+        pushCardLog(cardId, rarity)
     }
 
     /** 消耗卡片（分解 / 合成用），数量不足返回 false */
@@ -153,8 +156,91 @@ class CollectionRepository private constructor(context: Context) {
         get() = prefs.getInt(KEY_DEEP_SESSIONS, 0)
         private set(v) = prefs.edit().putInt(KEY_DEEP_SESSIONS, v).apply()
 
-    fun addFocusMinutes(m: Int) { totalFocusMinutes += m }
+    /**
+     * 记录一次完成的专注：累加总分钟 + 追加会话日志（统计图表用）。
+     * @param startedAt 本次专注开始时刻（用于图表按小时/天聚合）
+     * @param deep 是否深度专注
+     */
+    fun addFocusMinutes(m: Int, startedAt: Long = System.currentTimeMillis(), deep: Boolean = false) {
+        totalFocusMinutes += m
+        pushSessionLog(m, startedAt, deep)
+    }
+
     fun addFinishedSession() { finishedSessions += 1 }
+
+    // ---------- 专注统计（图表用） ----------
+
+    /** 一条完成的专注记录（统计图表用） */
+    data class SessionLog(
+        /** 开始时刻(ms) */
+        val startedAt: Long,
+        /** 专注分钟数 */
+        val minutes: Int,
+        /** 是否深度专注 */
+        val deep: Boolean
+    )
+
+    /** 一条获得卡片记录（"某天集了什么卡"用） */
+    data class CardLog(
+        /** 获得时刻(ms) */
+        val ts: Long,
+        val cardId: Int,
+        val rarity: Rarity
+    )
+
+    /** 全部完成的专注记录（时间正序；不含被丢弃的最旧记录） */
+    fun sessionLogs(): List<SessionLog> {
+        val s = prefs.getString(KEY_SESSION_LOG, null) ?: return emptyList()
+        return runCatching {
+            val a = JSONArray(s)
+            (0 until a.length()).mapNotNull { i ->
+                val o = a.optJSONObject(i) ?: return@mapNotNull null
+                SessionLog(
+                    o.optLong("st", 0L),
+                    o.optInt("m", 0),
+                    o.optBoolean("d", false)
+                )
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    /** 全部获得卡片记录（时间正序） */
+    fun cardLogs(): List<CardLog> {
+        val s = prefs.getString(KEY_CARD_LOG, null) ?: return emptyList()
+        return runCatching {
+            val a = JSONArray(s)
+            (0 until a.length()).mapNotNull { i ->
+                val o = a.optJSONObject(i) ?: return@mapNotNull null
+                val id = o.optInt("id", -1)
+                if (id in 1..CardCatalog.TOTAL) {
+                    CardLog(o.optLong("ts", 0L), id, Rarity.fromOrdinalSafe(o.optInt("r", 0)))
+                } else null
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    /** 追加会话日志（时间正序；上限 2000 条，超出丢弃最旧的） */
+    private fun pushSessionLog(m: Int, startedAt: Long, deep: Boolean) {
+        val arr = runCatching { JSONArray(prefs.getString(KEY_SESSION_LOG, "[]")) }
+            .getOrDefault(JSONArray())
+        arr.put(JSONObject().put("st", startedAt).put("m", m).put("d", deep))
+        while (arr.length() > 2000) arr.remove(0)
+        prefs.edit().putString(KEY_SESSION_LOG, arr.toString()).apply()
+    }
+
+    /** 追加卡片获得日志（时间正序；上限 2000 条，超出丢弃最旧的） */
+    private fun pushCardLog(cardId: Int, rarity: Rarity) {
+        val arr = runCatching { JSONArray(prefs.getString(KEY_CARD_LOG, "[]")) }
+            .getOrDefault(JSONArray())
+        arr.put(
+            JSONObject()
+                .put("ts", System.currentTimeMillis())
+                .put("id", cardId)
+                .put("r", rarity.ordinal)
+        )
+        while (arr.length() > 2000) arr.remove(0)
+        prefs.edit().putString(KEY_CARD_LOG, arr.toString()).apply()
+    }
 
     // ---------- 碎裂历史（详情弹窗用，倒序分页读取） ----------
 
@@ -275,6 +361,8 @@ class CollectionRepository private constructor(context: Context) {
             .remove(KEY_EQUIPPED_BADGE)
             .remove(KEY_PENDING)
             .remove(KEY_PENDING_CRACK)
+            .remove(KEY_SESSION_LOG)
+            .remove(KEY_CARD_LOG)
             .apply()
         ShopStore.get(appCtx).wipeDebug()
     }
@@ -305,6 +393,36 @@ class CollectionRepository private constructor(context: Context) {
             .putInt(KEY_SESSIONS, 120)
             .putInt(KEY_DEEP_SESSIONS, 20)
             .putInt(KEY_CRACKED, 0)
+            .apply()
+        // 统计图表演示数据：最近 60 天，多数日子 1~3 场专注，三成场次掉卡
+        val sessionLog = JSONArray()
+        val cardLog = JSONArray()
+        val rnd = java.util.Random(42)
+        val now = System.currentTimeMillis()
+        for (d in 59 downTo 0) {
+            val sessions = if (rnd.nextInt(4) == 0) 0 else 1 + rnd.nextInt(3)
+            repeat(sessions) {
+                val minutes = intArrayOf(10, 25, 45, 60, 90, 120)[rnd.nextInt(6)]
+                // 那天的某个过去时刻：now 往前推 d 天，再随机回退 0~15 小时
+                val startedAt = now - d * 86_400_000L -
+                    rnd.nextInt(15) * 3_600_000L - rnd.nextInt(60) * 60_000L
+                sessionLog.put(
+                    JSONObject().put("st", startedAt).put("m", minutes)
+                        .put("d", rnd.nextInt(5) == 0)
+                )
+                if (rnd.nextInt(3) == 0) {
+                    cardLog.put(
+                        JSONObject()
+                            .put("ts", startedAt + minutes * 60_000L)
+                            .put("id", 1 + rnd.nextInt(CardCatalog.TOTAL))
+                            .put("r", rnd.nextInt(3))
+                    )
+                }
+            }
+        }
+        prefs.edit()
+            .putString(KEY_SESSION_LOG, sessionLog.toString())
+            .putString(KEY_CARD_LOG, cardLog.toString())
             .apply()
         ShopStore.get(appCtx).debugSetCoins(99_999)
     }
@@ -415,6 +533,8 @@ class CollectionRepository private constructor(context: Context) {
         private const val KEY_DEEP_SESSIONS = "deepSessions"
         private const val KEY_PENDING = "pendingDrop"
         private const val KEY_PENDING_CRACK = "pendingCrack"
+        private const val KEY_SESSION_LOG = "sessionLog"
+        private const val KEY_CARD_LOG = "cardLog"
         private const val KEY_NICKNAME = "nickname"
         private const val KEY_RECENT = "recentCards"
         private const val KEY_LAST_CLAIM_DAY = "lastClaimDay"
