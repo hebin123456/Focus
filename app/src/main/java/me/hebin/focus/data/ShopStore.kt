@@ -40,7 +40,7 @@ object ItemCatalog {
     val items: List<ShopItem> = listOf(
         ShopItem(
             ID_FORGE, "合成石",
-            "合成时指定目标卡片：3 张同稀有度卡合成 1 张指定的下一级稀有度卡（不越级；3 张钻石可指定任意钻石卡）",
+            "合成时指定目标卡片：任意 3 张卡（稀有度可混搭）合成 1 张指定的、比其中最高稀有度更高一级的卡（3 张全钻石可指定任意钻石卡）",
             100
         ),
         ShopItem(

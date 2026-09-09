@@ -23,7 +23,7 @@
             android:layout_marginTop="64dp"
             android:background="@drawable/bg_splash_ad">
 
-            <!-- 品牌占位（SDK 接入后被移除/覆盖） -->
+            <!-- 品牌占位（SDK 接入后被移除/覆盖）：默认四宫格萌宠，或用户设置的开屏卡 -->
             <LinearLayout
                 android:id="@+id/splashBrandPlaceholder"
                 android:layout_width="match_parent"
@@ -32,7 +32,16 @@
                 android:orientation="vertical"
                 android:padding="18dp">
 
+                <!-- 用户设置的开屏卡（SplashCardStore；未设置时隐藏） -->
+                <me.hebin.focus.ui.view.CardView
+                    android:id="@+id/splashBrandCard"
+                    android:layout_width="190dp"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone" />
+
+                <!-- 默认四宫格（设置开屏卡后隐藏） -->
                 <GridLayout
+                    android:id="@+id/splashBrandGrid"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:columnCount="2"

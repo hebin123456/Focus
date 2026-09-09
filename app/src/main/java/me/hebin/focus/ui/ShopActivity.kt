@@ -330,6 +330,7 @@ class ShopActivity : AppCompatActivity() {
             tile.btnBuy.setOnClickListener { onBuyItem(shop, item) }
             addGridTile(binding.shopList, tile.root)
         }
+        padGridRows(binding.shopList)
     }
 
     /** 购买入口：时光回溯有专属流程（要选碎裂记录），其余统一二次确认 */
@@ -412,6 +413,7 @@ class ShopActivity : AppCompatActivity() {
             tile.root.setOnClickListener { onBagItemTap(item, n) }
             addGridTile(binding.bagList, tile.root)
         }
+        padGridRows(binding.bagList)
     }
 
     /** 背包道具详情：磁铁手动激活，其余展示说明与使用位置 */
@@ -463,5 +465,23 @@ class ShopActivity : AppCompatActivity() {
         val m = dp(4)
         lp.setMargins(m, m, m, m)
         parent.addView(child, lp)
+    }
+
+    /**
+     * 补齐网格最后一行的空位（透明占位）。
+     * GridLayout 只把剩余宽度分给「有子项的列」：最后一行不满时，前面的格子会被拉宽
+     * （只有一个道具时整卡占满一行）。补 0 尺寸占位让 3 列始终等宽、卡片宽度一致。
+     */
+    private fun padGridRows(parent: GridLayout, columns: Int = 3) {
+        val missing = (columns - parent.childCount % columns) % columns
+        repeat(missing) {
+            val lp = GridLayout.LayoutParams(
+                GridLayout.spec(GridLayout.UNDEFINED),
+                GridLayout.spec(GridLayout.UNDEFINED, 1f)
+            )
+            lp.width = 0
+            lp.height = 0
+            parent.addView(View(this), lp)
+        }
     }
 }

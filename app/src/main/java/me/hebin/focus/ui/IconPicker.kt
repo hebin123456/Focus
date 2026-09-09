@@ -20,6 +20,7 @@ import me.hebin.focus.R
 import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.CollectionRepository
 import me.hebin.focus.data.Rarity
+import me.hebin.focus.data.SplashCardStore
 import me.hebin.focus.ui.view.CardView
 
 /**
@@ -53,12 +54,29 @@ object IconPicker {
             paint.isFakeBoldText = true
         })
         root.addView(TextView(activity).apply {
-            text = "选择一张已收集的卡片作为桌面图标，样式跟随这张卡的稀有度（普卡朴素，钻石炫彩）"
+            text = "选择一张已收集的卡片，设为桌面图标或开屏品牌图；样式跟随这张卡的稀有度（普卡朴素，钻石炫彩）"
             textSize = 12f
             setTextColor(ContextCompat.getColor(activity, R.color.textSecondary))
             setPadding(0, dp(activity, 6), 0, 0)
             setLineSpacing(dp(activity, 2).toFloat(), 1.0f)
         })
+
+        // 已设开屏卡：提供恢复默认品牌图的入口
+        if (SplashCardStore.get(activity) != null) {
+            root.addView(MaterialButton(
+                ContextThemeWrapper(activity, com.google.android.material.R.style.Widget_Material3_Button_TextButton)
+            ).apply {
+                text = "恢复默认开屏图（四宫格萌宠）"
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = dp(activity, 6) }
+                setOnClickListener {
+                    SplashCardStore.clear(activity)
+                    Toast.makeText(activity, "已恢复默认开屏图", Toast.LENGTH_SHORT).show()
+                    sheet.dismiss()
+                }
+            })
+        }
 
         if (IconSwitcher.isCustom(activity)) {
             root.addView(MaterialButton(
@@ -219,7 +237,7 @@ object IconPicker {
         }
 
         androidx.appcompat.app.AlertDialog.Builder(activity)
-            .setTitle("用这张卡当图标？")
+            .setTitle("用这张卡做什么？")
             .setView(view)
             .setPositiveButton("设为图标") { d, _ ->
                 d.dismiss()
@@ -235,6 +253,18 @@ object IconPicker {
                 } else {
                     Toast.makeText(activity, "图标切换失败，请重试", Toast.LENGTH_SHORT).show()
                 }
+            }
+            .setNeutralButton("设为开屏图") { d, _ ->
+                d.dismiss()
+                val r = owned[idx]
+                SplashCardStore.set(activity, id, r)
+                Toast.makeText(
+                    activity,
+                    "开屏图已设置！下次打开 App 就是「${CardCatalog.displayName(id)} · ${r.label}」",
+                    Toast.LENGTH_LONG
+                ).show()
+                sheet?.dismiss()
+                onApplied?.invoke()
             }
             .setNegativeButton("取消") { d, _ -> d.dismiss() }
             .show()

@@ -8,7 +8,9 @@ import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import me.hebin.focus.ads.SplashAdManager
+import me.hebin.focus.data.SplashCardStore
 import me.hebin.focus.databinding.ActivitySplashBinding
+import me.hebin.focus.ui.view.CardView
 
 /**
  * 开屏页：所有桌面图标（506 个 activity-alias）统一先进这里，
@@ -55,6 +57,16 @@ class SplashActivity : AppCompatActivity() {
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
         } else {
+            // 品牌区：用户设置的开屏卡优先，否则默认四宫格
+            val card = SplashCardStore.get(this)
+            if (card != null) {
+                binding.splashBrandCard.isVisible = true
+                binding.splashBrandGrid.isVisible = false
+                binding.splashBrandCard.mode = CardView.Mode.FACE
+                binding.splashBrandCard.cardNumber = card.first
+                binding.splashBrandCard.rarity = card.second
+                binding.splashBrandCard.locked = false
+            }
             // 品牌占位图淡入
             binding.splashAdFrame.alpha = 0f
             binding.splashAdFrame.animate().alpha(1f).setDuration(400).start()

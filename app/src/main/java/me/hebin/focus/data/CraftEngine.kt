@@ -7,8 +7,8 @@ import kotlin.random.Random
  *
  * 规则（结果随机，防止定向凑卡图鉴）：
  *  - 分解：1 张 R 稀有度卡 → 3 张随机编号的 R-1 稀有度卡；普卡不可分解
- *  - 合成：3 张同稀有度卡（可不同编号）→ 1 张随机编号的高一级稀有度卡；
- *          3 张钻石 → 1 张随机编号的钻石卡（相当于重 roll 压轴卡）
+ *  - 合成：任意 3 张卡（编号、稀有度都可以不同）→ 1 张随机编号的
+ *          「最高稀有度 + 1」卡；3 张最高为钻石 → 1 张随机钻石卡（重 roll 压轴卡）
  *  - 随机编号沿用图鉴基础掉落权重（编号越稀有权重越低），与专注掉落分布一致
  */
 object CraftEngine {
@@ -17,9 +17,13 @@ object CraftEngine {
     fun decomposeTarget(r: Rarity): Rarity? =
         if (r == Rarity.COMMON) null else Rarity.entries[r.ordinal - 1]
 
-    /** 合成产物稀有度：钻石封顶重 roll，其余升一级 */
+    /** 合成产物稀有度：按 3 张中最高稀有度升一级；钻石封顶重 roll */
     fun synthesizeTarget(r: Rarity): Rarity =
         if (r == Rarity.DIAMOND) Rarity.DIAMOND else Rarity.entries[r.ordinal + 1]
+
+    /** 一组 picks 的最高稀有度（合成 / 定向合成的产物依据） */
+    fun highestRarity(picks: List<Pair<Int, Rarity>>): Rarity? =
+        picks.maxByOrNull { it.second.ordinal }?.second
 
     /** 按图鉴基础权重随机抽编号（与掉落同分布） */
     fun rollRandomCardId(rng: Random = Random.Default): Int {
@@ -39,11 +43,10 @@ object CraftEngine {
             .also { it.forEach { repo.addCard(it.cardId, it.rarity) } }
     }
 
-    /** 合成：picks 必须是 3 张同稀有度卡（编号可重复） */
+    /** 合成：picks 为任意 3 张卡（编号、稀有度均可不同），产物按最高稀有度升一级 */
     fun synthesize(repo: CollectionRepository, picks: List<Pair<Int, Rarity>>): DropEngine.Drop? {
         if (picks.size != 3) return null
-        val r = picks.first().second
-        if (picks.any { it.second != r }) return null
+        val r = highestRarity(picks) ?: return null
         if (!consumePicks(repo, picks)) return null
 
         val drop = DropEngine.Drop(rollRandomCardId(), synthesizeTarget(r))
@@ -53,7 +56,7 @@ object CraftEngine {
 
     // ---------- 道具定向操作（消耗品由调用方扣除） ----------
 
-    /** 校验并扣除 picks（3 张同稀有度），不足返回 false */
+    /** 校验并扣除 picks（任意 3 张），不足返回 false */
     private fun consumePicks(repo: CollectionRepository, picks: List<Pair<Int, Rarity>>): Boolean {
         // 先整体校验持有量，再逐组扣除，避免中途失败产生半成品
         val need = HashMap<Pair<Int, Rarity>, Int>()
@@ -79,15 +82,14 @@ object CraftEngine {
         return List(3) { DropEngine.Drop(targetId, lower) }
     }
 
-    /** 合成石定向合成：3 张同稀有度卡 → 1 张指定编号的高一级稀有度卡（不越级；钻石→指定钻石） */
+    /** 合成石定向合成：任意 3 张卡 → 1 张指定编号的、比最高稀有度再高一级的卡（3 张全钻石→指定钻石） */
     fun synthesizeInto(
         repo: CollectionRepository,
         picks: List<Pair<Int, Rarity>>,
         targetId: Int
     ): DropEngine.Drop? {
         if (picks.size != 3) return null
-        val r = picks.first().second
-        if (picks.any { it.second != r }) return null
+        val r = highestRarity(picks) ?: return null
         if (targetId !in 1..CardCatalog.TOTAL) return null
         if (!consumePicks(repo, picks)) return null
 

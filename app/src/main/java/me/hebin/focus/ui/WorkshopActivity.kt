@@ -45,7 +45,8 @@ import kotlin.math.sin
 /**
  * 卡片工坊：分解 / 合成。
  *  - 分解：选 1 张卡（普卡除外）→ 随机得 3 张低一级稀有度卡
- *  - 合成：选 3 张同稀有度卡（可不同编号，同卡可叠加）→ 随机得 1 张高一级稀有度卡
+ *  - 合成：选任意 3 张卡（编号、稀有度都可不同，同卡可叠加）→ 随机得 1 张
+ *          比其中最高稀有度更高一级的卡（3 张全钻石 = 重抽随机钻石卡）
  * 结果完全随机，无法定向凑卡。
  */
 class WorkshopActivity : AppCompatActivity() {
@@ -125,7 +126,7 @@ class WorkshopActivity : AppCompatActivity() {
 
         binding.textCraftHint.text = when (mode) {
             Mode.DECOMPOSE -> "选择 1 张卡片分解，随机获得 3 张低一级稀有度的卡片（普卡不可分解；只剩 1 张的卡会被保护，不可用）\n持有分解石可定向指定产物"
-            Mode.SYNTHESIZE -> "选 3 张同稀有度卡片（可不同编号，重复点同张卡可叠加）合成 1 张更高稀有度的卡片；3 张钻石合成随机钻石卡；只剩 1 张的卡会被保护，不可用\n持有合成石可定向指定目标"
+            Mode.SYNTHESIZE -> "选任意 3 张卡片合成：编号、稀有度都可以不同（重复点同张卡可叠加），产物是比其中最高稀有度更高一级的卡；3 张全钻石 = 重抽随机钻石卡；合成不限制最后一张（确认时会提示）\n持有合成石可定向指定目标"
             Mode.CONVERT -> "选 1 张卡片，用转换石换成随机的另一张同品质卡，或用超级转换石换成指定的同品质卡；升级石可把卡片升 1 级稀有度；只剩 1 张的卡会被保护，不可用"
         }
         refreshBottomBar()
@@ -214,11 +215,12 @@ class WorkshopActivity : AppCompatActivity() {
     private fun onSlotTap(position: Int) {
         if (position < 0 || position >= shown.size) return
         val (id, rarity, owned) = shown[position]
-        // 保护最后一张：仅剩 1 张的卡不允许分解 / 合成（避免把收藏搞没）
-        if (owned <= 1) {
+        // 保护最后一张：仅剩 1 张的卡不允许分解 / 转换（避免把收藏搞没）；
+        // 合成放开限制——3 张不同卡各 1 张也能合成，确认弹窗会提示"最后一张"
+        if (owned <= 1 && mode != Mode.SYNTHESIZE) {
             Toast.makeText(
                 this,
-                "${CardCatalog.displayName(id)} · ${rarity.label} 只剩 1 张，已保护，不能分解或合成",
+                "${CardCatalog.displayName(id)} · ${rarity.label} 只剩 1 张，已保护，不能分解或转换",
                 Toast.LENGTH_SHORT
             ).show()
             return
@@ -243,17 +245,26 @@ class WorkshopActivity : AppCompatActivity() {
                 } else if (cur > 0) {
                     selected[position] = cur + 1
                 } else {
-                    val first = selected.entries.firstOrNull()
-                    if (first != null && shown[first.key].second != rarity) {
-                        Toast.makeText(this, "只能选择同一种稀有度", Toast.LENGTH_SHORT).show()
-                        return
-                    }
+                    // 任意编号 / 稀有度都可以混选（产物按最高稀有度升级）
                     selected[position] = 1
                 }
             }
         }
         adapter.notifyDataSetChanged()
         refreshBottomBar()
+    }
+
+    /**
+     * 合成确认提示：picks 中哪些（编号, 稀有度）会被消耗到最后一张。
+     * 合成允许用单张卡，这里在确认弹窗里明确警示"图鉴将暂时失去它们"。
+     */
+    private fun lastCopyWarning(picks: List<Pair<Int, Rarity>>): String {
+        val repo = CollectionRepository.get(this)
+        val last = picks.groupBy({ it.first to it.second })
+            .count { (slot, list) -> (repo.ownedCounts(slot.first)[slot.second] ?: 0) <= list.size }
+        return if (last > 0)
+            "\n⚠️ 其中有 $last 种卡会用到最后一张，合成后图鉴将暂时失去它们。"
+        else ""
     }
 
     private fun refreshBottomBar() {
@@ -290,16 +301,18 @@ class WorkshopActivity : AppCompatActivity() {
                 binding.rowConvertStones.isVisible = false
                 val total = selected.values.sum()
                 if (total == 0) {
-                    binding.textCraftSummary.text = "从上方选择 3 张同稀有度卡片"
+                    binding.textCraftSummary.text = "从上方选择任意 3 张卡片（稀有度可以混搭）"
                     binding.btnCraftAction.isEnabled = false
                 } else {
-                    val r = shown[selected.keys.first()].second
+                    val r = CraftEngine.highestRarity(
+                        selected.keys.map { shown[it].first to shown[it].second }
+                    ) ?: Rarity.COMMON
                     val target = CraftEngine.synthesizeTarget(r)
                     val targetText =
                         if (r == Rarity.DIAMOND) "随机一张钻石卡（重抽压轴卡）"
                         else "1 张随机${target.label}"
                     binding.textCraftSummary.text =
-                        "已选 $total / 3 张${r.label}\n→ $targetText"
+                        "已选 $total / 3 张（最高 ${r.label}）\n→ $targetText"
                     binding.btnCraftAction.isEnabled = total == 3
                 }
 
@@ -394,12 +407,16 @@ class WorkshopActivity : AppCompatActivity() {
                 val picks = selected.flatMap { (pos, n) ->
                     List(n) { shown[pos].first to shown[pos].second }
                 }
-                val r = picks.first().second
+                val r = CraftEngine.highestRarity(picks) ?: return
                 val targetText =
                     if (r == Rarity.DIAMOND) "随机一张钻石卡" else "1 张随机${CraftEngine.synthesizeTarget(r).label}"
                 AlertDialog.Builder(this)
                     .setTitle("确认合成")
-                    .setMessage("将消耗 3 张${r.label}，获得 $targetText。合成不可撤销，确定吗？")
+                    .setMessage(
+                        "将消耗这 3 张卡片（其中最高 ${r.label}），获得 $targetText。" +
+                            lastCopyWarning(picks) +
+                            "\n合成不可撤销，确定吗？"
+                    )
                     .setPositiveButton("合成") { d, _ ->
                         d.dismiss()
                         val result = CraftEngine.synthesize(repo, picks)
@@ -464,14 +481,16 @@ class WorkshopActivity : AppCompatActivity() {
                 val picks = selected.flatMap { (pos, n) ->
                     List(n) { shown[pos].first to shown[pos].second }
                 }
-                val r = picks.first().second
+                val r = CraftEngine.highestRarity(picks) ?: return
                 val targetR = CraftEngine.synthesizeTarget(r)
                 showTargetPicker("选择合成目标 · ${targetR.label}", targetR) { targetId ->
                     val name = CardCatalog.displayName(targetId)
                     AlertDialog.Builder(this)
                         .setTitle("确认定向合成")
                         .setMessage(
-                            "将消耗 3 张${r.label}，合成指定的${targetR.label}「$name」，并消耗 1 个合成石。确定吗？"
+                            "将消耗这 3 张卡片（其中最高 ${r.label}），合成指定的${targetR.label}「$name」，并消耗 1 个合成石。" +
+                                lastCopyWarning(picks) +
+                                "\n确定吗？"
                         )
                         .setPositiveButton("合成") { d, _ ->
                             d.dismiss()
