@@ -22,6 +22,7 @@
 | 统计跳转 | 主页「已集图鉴」点击直达图鉴页；「累计专注」点击直达专注统计页 |
 | 专注统计 | 年 / 月 / 日三级柱状图（各月 → 每日 → 按小时，点击柱子逐级下钻，可跨年/月/日翻页）；日视图展示当天收集到的卡片与获得时刻；柱状图为 Canvas 自绘零依赖 |
 | 道具商店 | 金币购买道具放入背包；道具清单暂空（`ItemCatalog` 一行补一条即可上线） |
+| 金币充值 | 金币数字旁小加号入口 → 底部档位面板（68/188/388/688 金币，¥6~¥48，角标区分超值档）；当前为模拟收银台（点确认必成功），`PaymentApi`/`PaymentManager` 统一收口，接微信/支付宝/IAP 只需 setProvider 替换，业务代码零改动 |
 | 自定义图标 | 从已收集的图鉴卡里选一张当桌面图标，样式跟随该卡稀有度（普卡朴素 → 钻石青色辉光圈）；点击先弹二次确认，卡上左右滑动切换稀有度（仅已收集的），支持稀有度 + 类别筛选；activity-alias 预置 101×5+1 共 506 个别名运行时切换，Android 8.0+ |
 | 每日登录 | 每天首次打开送随机卡；联网校验时间防改本地时间；连续登录越久卡越好（第 1 天≈10 分钟档，第 23 天起封顶 120 分钟档） |
 | 成就系统 | 22 个成就 × 点数（总计 560 点）：连续登录天数、集齐普/铜/银/金/钻各 101 张、专注时长/次数、深度专注次数、首次金卡/钻石卡 |
@@ -67,6 +68,10 @@ app/src/main/java/me/hebin/focus/
 │   ├── AdApi.kt                # 广告位定义 / 结果回调 / SDK 抽象接口
 │   ├── AdManager.kt            # 广告分发 + 频控（冷却/日限，自然日重置）
 │   └── StubAdApi.kt            # 本地模拟实现（无 SDK 依赖）
+├── payment/
+│   ├── PaymentApi.kt           # 充值档位(CoinSku) + 结果回调 + SDK 抽象接口
+│   ├── PaymentManager.kt       # 支付分发 + 统一入账（成功 → ShopStore.grantCoins）
+│   └── StubPaymentApi.kt       # 模拟收银台（无 SDK 依赖，接真实支付替换本类）
 └── ui/
     ├── MainActivity.kt         # 主页：抽屉导航 + 统计 + 金币跳动 + 每日领卡
     ├── StatsActivity.kt        # 专注统计页：年/月/日柱状图下钻 + 当天收集卡片
@@ -74,7 +79,7 @@ app/src/main/java/me/hebin/focus/
     ├── CollectionActivity.kt   # 图鉴页
     ├── CardGridAdapter.kt      # 图鉴网格适配器
     ├── WorkshopActivity.kt     # 卡片工坊：分解/合成双 Tab
-    ├── ShopActivity.kt         # 道具商店：金币 + 商店 + 背包
+    ├── ShopActivity.kt         # 道具商店：金币 + 商店 + 背包 + 充值档位面板
     ├── IconPicker.kt           # 自定义图标选择面板（BottomSheet）
     ├── IconSwitcher.kt         # activity-alias 图标切换
     ├── AchievementActivity.kt  # 成就页：点数/徽章佩戴/成就进度
@@ -116,6 +121,7 @@ GitHub Actions 已配置（`.github/workflows/android.yml`）：push 到 master 
 - [ ] 道具内容设计（清单在 `ItemCatalog`，加一行即上架）
 - [ ] 专注计时防作弊（elapsedRealtime 替代 currentTimeMillis + 网络校验）
 - [ ] 后端接入：账号系统、`RewardApi` 真实实现、防作弊校验
+- [ ] 真实充值通道：微信 / 支付宝 / 应用商店 IAP 替换 `StubPaymentApi`（档位 id 对齐商户后台即可）
 - [x] 白噪音 / 深度专注模式
 - [x] 屏幕固定 + 浮窗遮挡检测 + 碎裂记录（v0.8.0）
 - [ ] 集换社交（与好友交换重复卡、徽章展示互动）

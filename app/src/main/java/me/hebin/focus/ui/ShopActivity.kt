@@ -5,10 +5,12 @@ import android.os.Handler
 import android.os.Looper
 import android.view.View
 import android.widget.GridLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import me.hebin.focus.R
 import me.hebin.focus.data.CardCatalog
 import me.hebin.focus.data.CollectionRepository
@@ -114,29 +116,41 @@ class ShopActivity : AppCompatActivity() {
     // ---------- 金币充值（支付接入留口） ----------
 
     /**
-     * 金币档位选择：支付通道已接入则直接拉起支付，未接入提示「即将开放」。
-     * 档位与支付回调统一走 PaymentManager，接入真实 SDK 时业务代码零改动。
+     * 金币充值底部面板：2 列档位卡片（金币数 / 角标 / 价格），点击档位拉起支付，
+     * 支付成功余额实时刷新、面板不关闭可继续买。
+     * 档位与支付回调统一走 PaymentManager——当前挂 Stub 模拟收银台（点确认必成功），
+     * 接真实 SDK（微信 / 支付宝 / IAP）时业务代码零改动。
      */
     private fun showCoinShop() {
         val skus = PaymentManager.coinSkus
-        val labels = skus.map {
-            buildString {
-                append("${it.coins} 金币")
-                append("   ${it.priceLabel}")
-                it.tag?.let { t -> append("   · $t") }
-            }
-        }.toTypedArray()
-
         val available = PaymentManager.isAvailable(this)
-        AlertDialog.Builder(this)
-            .setTitle("充值金币")
-            .setMessage(
-                if (available) "选择档位完成支付，金币立即到账"
-                else "支付通道接入中，档位抢先看：\n金币也可以靠前台挂机慢慢攒哦"
-            )
-            .setItems(labels) { d, which ->
-                d.dismiss()
-                val sku = skus[which]
+        val sheet = BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.sheet_coin_shop, null)
+
+        // 当前余额（支付成功后原地刷新）
+        val balanceText = view.findViewById<TextView>(R.id.textSheetBalance)
+        fun renderBalance() {
+            balanceText.text = "当前余额 ${ShopStore.get(this).currentCoins()} 金币"
+        }
+        renderBalance()
+
+        view.findViewById<TextView>(R.id.textSheetNote).text =
+            if (available) "选择档位完成支付，金币立即到账"
+            else "支付通道接入中，档位抢先看：\n金币也可以靠前台挂机慢慢攒哦"
+        view.findViewById<TextView>(R.id.textSheetFooter).isVisible = available
+
+        val grid = view.findViewById<GridLayout>(R.id.gridCoinSkus)
+        skus.forEach { sku ->
+            val card = layoutInflater.inflate(R.layout.item_coin_sku, grid, false)
+            card.findViewById<TextView>(R.id.textSkuCoins).text = sku.coins.toString()
+            card.findViewById<TextView>(R.id.textSkuPrice).text = sku.priceLabel
+            card.findViewById<TextView>(R.id.textSkuTag).apply {
+                if (sku.tag != null) {
+                    text = sku.tag
+                    isVisible = true
+                }
+            }
+            card.setOnClickListener {
                 PaymentManager.purchaseCoins(this, sku) { r ->
                     when (r) {
                         is PaymentResult.Success -> {
@@ -144,6 +158,7 @@ class ShopActivity : AppCompatActivity() {
                                 this, "充值成功：+${r.sku.coins} 金币", Toast.LENGTH_SHORT
                             ).show()
                             refresh()
+                            renderBalance()
                         }
                         is PaymentResult.Failed ->
                             Toast.makeText(this, r.reason, Toast.LENGTH_SHORT).show()
@@ -151,8 +166,10 @@ class ShopActivity : AppCompatActivity() {
                     }
                 }
             }
-            .setNegativeButton("取消", null)
-            .show()
+            grid.addView(card)
+        }
+        sheet.setContentView(view)
+        sheet.show()
     }
 
     // ---------- 每日看广告（广告接入留口） ----------

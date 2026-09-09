@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 金币充值底部面板：标题 + 当前余额 / 提示 / 2 列档位网格 / 模拟支付脚注 -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingTop="16dp"
+    android:paddingBottom="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="充值金币"
+            android:textColor="@color/textPrimary"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textSheetBalance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="当前余额 0 金币"
+            android:textColor="@color/textSecondary"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textSheetNote"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:text="选择档位完成支付，金币立即到账"
+        android:textColor="@color/textSecondary"
+        android:textSize="11sp" />
+
+    <GridLayout
+        android:id="@+id/gridCoinSkus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:columnCount="2" />
+
+    <TextView
+        android:id="@+id/textSheetFooter"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:text="· 模拟支付阶段，正式版将接入微信 / 支付宝 ·"
+        android:textColor="@color/textSecondary"
+        android:textSize="10sp" />
+</LinearLayout>
