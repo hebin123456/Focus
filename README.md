@@ -137,3 +137,8 @@ GitHub Actions 已配置（`.github/workflows/android.yml`）：push 到 master 
 | gradle.properties | 作用 |
 |---|---|
 | `focusDebugTools=true` | 启用关于弹窗隐藏调试（连点 5 下清空收集 / 10 下全收集全成就）；**正式发布编译前改 false**，代码随 `BuildConfig.DEBUG_TOOLS` 剔除 |
+
+## 开源致谢
+
+- [XMSLEEP](https://github.com/Tosencen/XMSLEEP)（MIT License）：v0.9.5 白噪音模块的多声混音交互架构参考（本项目未拷贝其代码与音频素材，声景全部程序化合成；关于弹窗内已按 MIT 惯例标注）
+- AndroidX / Material Components（Apache License 2.0）：随 Gradle 依赖分发

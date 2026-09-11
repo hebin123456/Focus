@@ -502,13 +502,14 @@ class MainActivity : AppCompatActivity() {
             · 金币与道具商店：App 前台挂机攒金币，也支持充值（支付通道接入中）
             · 图鉴卡片一键生成分享图，晒到其他 App
             · 每日一言：主页名人名言每次启动随机换
-            · 白噪音：雨声 / 海浪 / 炉火 / 白噪程序化合成，专注时可选可调音量
+            · 白噪音：18 种声景六类分组，可同时叠加混音，每声音独立音量（v0.9.5）
             · 深度专注：全屏沉浸 + 屏幕固定，完成金币翻倍
             · 自定义图标：用收集到的萌宠当桌面图标，样式跟随稀有度
             · 每日登录送卡，连续越久卡越好（联网校验时间）
             · 成就点数解锁青铜/白银/黄金/钻石勋章，可佩戴展示
             · 资料仅保存在本地，无账号无上传
 
+            开源致谢：白噪音模块混音交互架构参考 XMSLEEP（MIT License，github.com/Tosencen/XMSLEEP）
             开源仓库：github.com/hebin123456/Focus
         """.trimIndent()
         val dialog = AlertDialog.Builder(this)
