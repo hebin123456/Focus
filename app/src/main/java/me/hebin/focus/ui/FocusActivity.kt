@@ -28,6 +28,7 @@ import android.view.animation.LinearInterpolator
 import android.view.animation.OvershootInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.SeekBar
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -38,6 +39,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.chip.Chip
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -81,9 +83,6 @@ class FocusActivity : AppCompatActivity() {
 
     /** 深度专注模式（由主页开关带入） */
     private var deep = false
-
-    /** 当前播放的声景，null = 关闭 */
-    private var curSound: AmbientSound? = null
 
     /** 深度专注请求屏幕固定（Screen Pinning）的时间戳：确认框期间跳过离开判定，防误伤 */
     private var lockTaskRequestAt = 0L
@@ -166,16 +165,27 @@ class FocusActivity : AppCompatActivity() {
         }
         binding.btnGiveUp.setOnClickListener { confirmGiveUp() }
         binding.btnPause.setOnClickListener { confirmPause() }
-        setupNoisePanel()
         // 深度专注：请求屏幕固定（Screen Pinning），Home/多任务/返回全部失效，长按返回才可退出
         if (deep && restoredCrack == null) {
             lockTaskRequestAt = System.currentTimeMillis()
             binding.root.post { runCatching { startLockTask() } }
         }
-        // 自动续播上次选的声景；深度专注默认雨声（用户明确关过则尊重选择）
+        // 深度专注默认雨声：仅当从未表达过选择（用户明确全关过则尊重）
+        if (deep && !AmbientPrefs.configured(this) &&
+            restoredCrack == null && FocusSessionManager.state is State.Focusing
+        ) {
+            AmbientPrefs.setActiveSounds(this, setOf(AmbientSound.RAIN))
+        }
+        setupNoisePanel(AmbientPrefs.activeSounds(this))
+        // 自动续播上次选的声景组合（碎裂恢复页不播）；锁屏继续、切走随碎裂停止
         if (restoredCrack == null && FocusSessionManager.state is State.Focusing) {
-            val init = AmbientPrefs.sound(this, if (deep) AmbientSound.RAIN else AmbientSound.OFF)
-            if (init != AmbientSound.OFF) startAmbient(init)
+            val sounds = AmbientPrefs.activeSounds(this)
+            for (s in sounds) {
+                AmbientPlayer.start(s, AmbientPrefs.soundVolume(this, s) / 100f)
+            }
+            if (sounds.isNotEmpty()) {
+                AmbientPlayer.setMasterVolume(AmbientPrefs.masterVolume(this) / 100f)
+            }
         }
         startTicker()
     }
@@ -689,34 +699,34 @@ class FocusActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupNoisePanel() {
-        val buttons = listOf(
-            AmbientSound.OFF to R.id.btnNoiseOff,
-            AmbientSound.WHITE to R.id.btnNoiseWhite,
-            AmbientSound.RAIN to R.id.btnNoiseRain,
-            AmbientSound.WAVES to R.id.btnNoiseWave,
-            AmbientSound.FIRE to R.id.btnNoiseFire
-        )
-        val current = curSound
-            ?: AmbientPrefs.sound(this, if (deep) AmbientSound.RAIN else AmbientSound.OFF)
-        binding.noiseGroup.check(buttons.first { it.first == current }.second)
-        binding.noiseGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!isChecked) return@addOnButtonCheckedListener
-            val s = buttons.first { it.second == checkedId }.first
-            AmbientPrefs.setSound(this, s)
-            if (s == AmbientSound.OFF) {
-                curSound = null
-                AmbientPlayer.stop()
-            } else {
-                startAmbient(s)
+    /**
+     * XMSLEEP 式白噪音面板：多选声景芯片（可同时叠加多个声音混音），
+     * 长按单个芯片弹出该声音的独立音量滑杆；总音量滑杆作用于所有声部。
+     */
+    private fun setupNoisePanel(initial: Set<AmbientSound>) {
+        val group = binding.noiseGroup
+        for (s in AmbientSound.playable) {
+            val chip = layoutInflater.inflate(R.layout.item_noise_chip, group, false) as Chip
+            chip.text = s.label
+            chip.isChecked = s in initial   // 先设状态再挂监听，避免程序化勾选触发播放
+            group.addView(chip)
+            chip.setOnCheckedChangeListener { _, checked ->
+                if (checked) {
+                    AmbientPrefs.addActive(this, s)
+                    AmbientPlayer.start(s, AmbientPrefs.soundVolume(this, s) / 100f)
+                } else {
+                    AmbientPrefs.removeActive(this, s)
+                    AmbientPlayer.stop(s)
+                }
             }
+            chip.setOnLongClickListener { showSoundVolumeDialog(s); true }
         }
-        binding.noiseVolume.progress = AmbientPrefs.volume(this)
+        binding.noiseVolume.progress = AmbientPrefs.masterVolume(this)
         binding.noiseVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
                 if (!fromUser) return
-                AmbientPrefs.setVolume(this@FocusActivity, p)
-                AmbientPlayer.setVolume(p / 100f)
+                AmbientPrefs.setMasterVolume(this@FocusActivity, p)
+                AmbientPlayer.setMasterVolume(p / 100f)
             }
 
             override fun onStartTrackingTouch(sb: SeekBar) = Unit
@@ -724,9 +734,34 @@ class FocusActivity : AppCompatActivity() {
         })
     }
 
-    private fun startAmbient(s: AmbientSound) {
-        curSound = s
-        AmbientPlayer.start(s, AmbientPrefs.volume(this) / 100f)
+    /** 长按芯片：单独调这个声音的混音音量（拖动实时生效，即时保存） */
+    private fun showSoundVolumeDialog(s: AmbientSound) {
+        val pad = dp(24f).toInt()
+        val slider = SeekBar(this).apply {
+            max = 100
+            progress = AmbientPrefs.soundVolume(this@FocusActivity, s)
+            setPadding(pad, dp(10f).toInt(), pad, 0)
+        }
+        slider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
+                if (!fromUser) return
+                AmbientPrefs.setSoundVolume(this@FocusActivity, s, p)
+                AmbientPlayer.setSoundVolume(s, p / 100f)
+            }
+
+            override fun onStartTrackingTouch(sb: SeekBar) = Unit
+            override fun onStopTrackingTouch(sb: SeekBar) = Unit
+        })
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(pad, 0, pad, dp(8f).toInt())
+            addView(slider)
+        }
+        AlertDialog.Builder(this)
+            .setTitle("「${s.label}」音量")
+            .setView(content)
+            .setPositiveButton("好", null)
+            .show()
     }
 
     // ---------------- 工具 ----------------

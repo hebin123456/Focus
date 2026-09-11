@@ -96,10 +96,11 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/textResult" />
 
-    <!-- 白噪音面板：专注中可见，可随时切声景 / 调音量 -->
+    <!-- 白噪音面板（XMSLEEP 式）：多选声景芯片（可同时叠加多个声音），横滑浏览；
+         长按单个芯片可调该声音的独立音量；下方滑杆为总音量 -->
     <LinearLayout
         android:id="@+id/noisePanel"
-        android:layout_width="wrap_content"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginBottom="14dp"
         android:gravity="center_horizontal"
@@ -109,63 +110,21 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <com.google.android.material.button.MaterialButtonToggleGroup
-            android:id="@+id/noiseGroup"
-            android:layout_width="wrap_content"
+        <HorizontalScrollView
+            android:id="@+id/noiseScroll"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:selectionRequired="true"
-            app:singleSelection="true">
+            android:fadingEdgeLength="20dp"
+            android:requiresFadingEdge="horizontal"
+            android:scrollbars="none">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnNoiseOff"
-                style="@style/Widget.Material3.Button.OutlinedButton"
+            <com.google.android.material.chip.ChipGroup
+                android:id="@+id/noiseGroup"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:minWidth="0dp"
-                android:paddingHorizontal="12dp"
-                android:text="关闭"
-                android:textSize="12sp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnNoiseWhite"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="0dp"
-                android:paddingHorizontal="12dp"
-                android:text="白噪"
-                android:textSize="12sp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnNoiseRain"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="0dp"
-                android:paddingHorizontal="12dp"
-                android:text="雨声"
-                android:textSize="12sp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnNoiseWave"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="0dp"
-                android:paddingHorizontal="12dp"
-                android:text="海浪"
-                android:textSize="12sp" />
-
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnNoiseFire"
-                style="@style/Widget.Material3.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:minWidth="0dp"
-                android:paddingHorizontal="12dp"
-                android:text="炉火"
-                android:textSize="12sp" />
-        </com.google.android.material.button.MaterialButtonToggleGroup>
+                android:layout_gravity="center_horizontal"
+                app:singleLine="true" />
+        </HorizontalScrollView>
 
         <SeekBar
             android:id="@+id/noiseVolume"
@@ -176,6 +135,15 @@
             android:progressBackgroundTint="@color/track"
             android:progressTint="@color/primary"
             android:thumbTint="@color/primary" />
+
+        <TextView
+            android:id="@+id/noiseHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text="可多选叠加 · 长按单独调音量"
+            android:textColor="@color/textSecondary"
+            android:textSize="11sp" />
     </LinearLayout>
 
     <TextView
